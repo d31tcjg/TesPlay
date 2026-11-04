@@ -1,0 +1,218 @@
+.qr-art {
+  width: 248px;
+  height: 248px;
+  max-width: 100%;
+  margin: 20px auto;
+  background: white;
+  border-radius: 16px;
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.qr-art canvas {
+  display: block;
+  width: 100% !important;
+  height: auto !important;
+  max-width: 248px;
+}
+.qr-placeholder {
+  position: absolute;
+  inset: 20px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  color: #222;
+  font-size: 14px;
+}
+.qr-login {
+  text-align: center;
+}
+.qr-login h3 {
+  font-size: 22px;
+  margin: 18px 0 6px;
+}
+.qr-login p {
+  font-size: 14px;
+}
+.qr-login .pair-code {
+  font-size: 26px;
+  letter-spacing: 0.25em;
+  margin: 12px 0;
+}
+.qr-login .form-help {
+  line-height: 1.6;
+}
+.qr-login .button {
+  margin-top: 12px;
+}
+.qr-local-notice {
+  padding: 13px 15px;
+  border: 1px solid #e4b65b55;
+  background: #e4b65b0d;
+  border-radius: 10px;
+  color: #ebd9b8;
+  font-size: 13px;
+  line-height: 1.6;
+  text-align: left;
+  margin: 12px 0;
+}
+.qr-local-notice code {
+  overflow-wrap: anywhere;
+}
+.qr-link {
+  display: block;
+  overflow-wrap: anywhere;
+  color: inherit;
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 14px 0;
+  text-align: center;
+}
+.phone-setup-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 22px;
+  border: 1px solid #ffffff18;
+  border-radius: 16px;
+  background: #ffffff04;
+  margin: 24px 0;
+}
+.phone-setup-notice h3 {
+  margin: 0 0 7px;
+  font-size: 18px;
+}
+.phone-setup-notice p {
+  margin: 0;
+  color: var(--muted, #a3a3ab);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.phone-setup-notice .button {
+  white-space: nowrap;
+}
+.connection-credential-note {
+  display: block;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--muted, #a3a3ab);
+  margin: 4px 0;
+}
+.connection-mode {
+  margin: 18px 0;
+}
+.connection-mode button {
+  min-height: 48px;
+}
+.connection-inline-link {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.saved-connections .connection-actions {
+  flex-wrap: wrap;
+}
+.saved-connections .icon-button {
+  min-height: 44px;
+  min-width: 44px;
+}
+.device-approval-page {
+  min-height: 100dvh;
+  padding: 36px 24px;
+  background: radial-gradient(ellipse at 50% 15%, #252130 0%, #0c0c10 65%);
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  gap: 48px;
+}
+.device-approval-card {
+  width: min(100%, 480px);
+  text-align: center;
+}
+.device-approval-card h1 {
+  font-size: 30px;
+  line-height: 1.2;
+  margin: 20px 0 12px;
+}
+.device-approval-card .button {
+  margin-top: 14px;
+}
+.approval-icon {
+  color: var(--accent, #daff83);
+}
+.phone-setup-steps {
+  padding-left: 20px;
+  line-height: 1.8;
+  font-size: 14px;
+  color: var(--muted, #a3a3ab);
+}
+.phone-setup-account {
+  font-size: 13px;
+  padding: 12px;
+  border-radius: 8px;
+  background: #ffffff07;
+}
+.phone-setup-done {
+  margin-top: 18px;
+}
+.qr-auth-mode {
+  margin: 18px auto 0;
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+}
+@media (max-width: 650px) {
+  .phone-setup-notice {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+  }
+  .device-approval-page {
+    padding: 24px 16px;
+    gap: 28px;
+  }
+  .device-approval-card {
+    padding: 25px 22px;
+  }
+  .qr-art {
+    width: 224px;
+    height: 224px;
+  }
+  .connection-actions .button.small {
+    min-height: 44px;
+  }
+}
+
+.auth-qr .auth-main {
+  padding-top: 12px;
+  align-items: start;
+}
+.auth-qr .auth-intro {
+  align-self: center;
+}
+.auth-qr .auth-card > h2,
+.auth-qr .auth-card > p {
+  display: none;
+}
+.auth-qr .qr-login .pair-code {
+  padding: 14px;
+}
+@media (max-width: 650px) {
+  .auth-phone .auth-intro {
+    display: none;
+  }
+  .auth-phone .auth-main {
+    padding-top: 8px;
+  }
+  .player-footer.has-next {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+  .player-footer.has-next > span:nth-child(2) {
+    display: block;
+  }
+}

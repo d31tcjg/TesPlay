@@ -1,0 +1,126 @@
+/* The featured title is the visual; the rest of Home is a quiet library. */
+.hero {
+  position: relative; isolation: isolate; display: flex; flex-direction: column;
+  justify-content: center; min-height: 576px; padding: 64px var(--pad) 112px;
+  overflow: hidden; background-color: var(--surface); background-size: cover; background-position: center 38%;
+}
+.hero-vignette {
+  position: absolute; inset: 0; z-index: -1;
+  background: linear-gradient(90deg, #101012fa 0%, #101012dc 24%, #10101270 50%, #10101210 80%),
+    linear-gradient(0deg, var(--bg), #10101220 40%, #10101210);
+}
+.hero-content { position: relative; max-width: 640px; }
+.hero-kicker { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; font-size: 13px; color: var(--secondary); }
+.hero-kicker::before { content: ''; width: 24px; height: 2px; background: var(--accent); }
+.hero h1 {
+  max-width: 640px; margin: 0 0 24px; color: var(--text); font-family: "Manrope", sans-serif;
+  font-weight: 500; font-size: clamp(48px, 5.2vw, 76px); line-height: 1.08; letter-spacing: -.04em;
+  text-wrap: balance; overflow-wrap: anywhere;
+}
+.hero h1.long-title { font-size: clamp(40px, 4.3vw, 60px); }
+.hero h1.very-long-title { font-size: clamp(32px, 3.5vw, 48px); }
+.hero-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; color: var(--secondary); font-size: 13px; font-variant-numeric: tabular-nums; }
+.hero-meta > span + span::before { content: '·'; margin-right: 12px; color: var(--muted); }
+.hero-content > p {
+  max-width: 456px; margin: 24px 0 32px; color: var(--secondary); font-size: 15px; line-height: 1.7;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden;
+}
+.hero-actions { display: flex; align-items: center; gap: 12px; }
+.hero-actions .button { min-height: 48px; padding-inline: 24px; }
+.hero-actions .button.ghost { background: #10101280; border-color: #ffffff30; }
+.hero-actions .button.ghost:hover { background: var(--raised); }
+.hero-bottom { position: absolute; bottom: 24px; left: var(--pad); right: var(--pad); display: flex; justify-content: space-between; align-items: center; gap: 24px; }
+.hero-save { color: var(--secondary); gap: 8px; font-size: 13px; min-height: 44px; }
+.hero-pages { display: flex; align-items: center; gap: 20px; font-size: 12px; font-variant-numeric: tabular-nums; color: var(--text); }
+.hero-pages small { font: inherit; color: var(--muted); }
+.hero-pages > div { display: flex; align-items: center; gap: 4px; }
+.hero-pages button { display: grid; place-items: center; width: 32px; height: 44px; padding: 0; background: transparent; border-radius: 4px; }
+.hero-pages button span { width: 100%; height: 2px; background: #ffffff38; transition: background-color 160ms var(--ease); }
+.hero-pages button.selected span { background: var(--accent); }
+.hero-pages button:hover span { background: var(--text); }
+.home-content { width: 100%; max-width: 1760px; margin: 0 auto; padding: 24px var(--pad) 0; }
+.worlds { margin-bottom: 40px; }
+.worlds .section-heading { margin-bottom: 16px; }
+.worlds .section-heading .text-button { color: var(--muted); font-size: 13px; }
+.service-rail { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
+.service-tile {
+  min-width: 0; min-height: 88px; display: flex; align-items: center; gap: 12px;
+  padding: 16px; text-align: left; border: 1px solid var(--line); border-radius: 8px; background: transparent;
+}
+.service-tile:hover { background: var(--surface); border-color: #ffffff26; }
+.service-tile .service-logo { display: grid; place-items: center; flex: none; width: 32px; height: 32px; font-size: 20px; letter-spacing: 0; }
+.service-tile .service-logo.plex { font-size: 19px; letter-spacing: -1px; }
+.service-tile .service-logo.drive { font-size: 28px; }
+.service-tile .youtube-logo { width: 28px; height: 20px; }
+.service-copy { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.service-label { color: var(--text); font-size: 13px; line-height: 20px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.service-state { color: var(--muted); font-size: 12px; line-height: 16px; }
+.service-tile > svg { width: 16px; height: 16px; margin-left: auto; color: var(--muted); stroke-width: 1.5; }
+.discovery-row { margin: 8px 0 40px; }
+.discovery-card { display: flex; align-items: center; gap: 24px; width: 100%; padding: 24px 0; text-align: left; background: transparent; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.discovery-card > .youtube-logo { width: 40px; height: 28px; flex: none; }
+.discovery-card > div { min-width: 0; }
+.discovery-card .small-caps { color: var(--muted); font-weight: 400; }
+.discovery-card h3 { margin: 4px 0 8px; font-size: 20px; font-weight: 500; }
+.discovery-card p { color: var(--muted); font-size: 13px; line-height: 1.6; }
+.discovery-card > svg:last-child { margin-left: auto; color: var(--muted); stroke-width: 1.5; }
+.discovery-card:hover h3 { color: var(--accent); }
+.connect-banner { display: flex; justify-content: space-between; align-items: center; gap: 24px; padding: 24px; margin-bottom: 40px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+.connect-banner > div { display: flex; align-items: center; gap: 16px; }
+.connect-banner > div > svg { color: var(--muted); stroke-width: 1.5; }
+.connect-banner h3 { font-size: 18px; font-weight: 500; margin-bottom: 8px; }
+.connect-banner p { color: var(--muted); font-size: 14px; line-height: 1.6; }
+.home-loading { min-height: 320px; padding-block: 64px; border-bottom: 1px solid var(--line); }
+.home-loading h1 { font: 500 clamp(36px, 4.5vw, 64px)/1.12 "Manrope", sans-serif; letter-spacing: -.03em; margin: 24px 0; text-wrap: balance; }
+.home-loading > p { color: var(--secondary); max-width: 520px; font-size: 16px; line-height: 1.7; }
+.home-loading .busy { min-height: 64px; justify-content: flex-start; }
+
+@media (max-width: 1320px) {
+  .service-rail { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .service-tile { min-height: 80px; }
+}
+@media (max-width: 960px) {
+  .hero { min-height: 528px; padding-top: 48px; background-position: 60% center; }
+  .hero-content { max-width: 560px; }
+  .hero h1 { max-width: 520px; }
+}
+@media (max-width: 600px) {
+  .hero { min-height: 560px; justify-content: flex-end; padding: 160px 20px 88px; background-position: 65% top; }
+  .hero-vignette { background: linear-gradient(0deg, #101012 0%, #101012ef 25%, #101012a6 58%, #10101218 100%); }
+  .hero-kicker { margin-bottom: 16px; font-size: 12px; }
+  .hero h1 { font-size: 40px; margin-bottom: 16px; letter-spacing: -.03em; }
+  .hero h1.long-title { font-size: 36px; }
+  .hero h1.very-long-title { font-size: 30px; }
+  .hero-content > p { font-size: 14px; line-height: 1.6; margin: 16px 0 24px; -webkit-line-clamp: 2; }
+  .hero-actions { gap: 12px; }
+  .hero-actions .button { min-height: 48px; padding-inline: 20px; font-size: 14px; }
+  .hero-bottom { left: 20px; right: 20px; bottom: 16px; gap: 12px; }
+  .hero-save { font-size: 12px; }
+  .hero-pages { gap: 8px; }
+  .hero-pages button { width: 16px; }
+  .hero-pages > div { gap: 4px; }
+  .home-content { padding-top: 24px; }
+  .worlds { margin-bottom: 32px; }
+  .worlds .section-heading { gap: 8px; }
+  .worlds .section-heading .text-button { font-size: 12px; }
+  .service-rail { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .service-tile { gap: 8px; min-height: 80px; padding: 12px; }
+  .service-tile .service-logo { width: 28px; font-size: 18px; }
+  .service-tile > svg { display: none; }
+  .service-label { font-size: 12px; }
+  .service-state { font-size: 11px; }
+  .discovery-card { gap: 16px; }
+  .discovery-card > .youtube-logo { width: 32px; }
+  .discovery-card h3 { font-size: 18px; }
+  .connect-banner { flex-direction: column; align-items: stretch; padding: 20px; }
+  .connect-banner .button { width: 100%; }
+  .home-loading { min-height: 280px; padding-block: 40px; }
+  .home-loading h1 { font-size: 40px; }
+}
+@media (max-height: 600px) and (min-width: 961px) {
+  .hero { min-height: 464px; padding-top: 40px; padding-bottom: 96px; }
+  .hero h1 { font-size: 52px; }
+}
+
+/* The original floating navigation supplies the spotlight header inset. */
+.app-shell[data-navigation-overlay=true] > main .hero { padding-top: 0; }

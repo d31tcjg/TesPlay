@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="240" viewBox="0 0 1200 240" role="img" aria-labelledby="title description">
+  <title id="title">TesPlay</title>
+  <desc id="description">Your media. Your Tesla screen. A personal cinema, hosted by you.</desc>
+  <rect x="1" y="1" width="1198" height="238" rx="20" fill="#101112" stroke="#292b2d"/>
+  <path d="M62 59a4 4 0 0 1 6-3l31 19a4 4 0 0 1 0 7L68 101a4 4 0 0 1-6-3Z" fill="#ff684a"/>
+  <text x="118" y="101" fill="#f3f2f0" font-family="Arial,Helvetica,sans-serif" font-size="62" font-weight="700" letter-spacing="-2">TesPlay<tspan fill="#ff684a">.</tspan></text>
+  <text x="62" y="153" fill="#eeeae6" font-family="Arial,Helvetica,sans-serif" font-size="25" letter-spacing="-.4">Your media. Your Tesla screen.</text>
+  <text x="62" y="188" fill="#96999d" font-family="Arial,Helvetica,sans-serif" font-size="18">A personal cinema, hosted by you.</text>
+  <g fill="none" stroke="#414448" stroke-width="2">
+    <rect x="819" y="43" width="278" height="151" rx="12" fill="#181a1c"/>
+    <path d="M838 169h239" stroke="#303337"/>
+    <path d="M938 194v15m-26 0h52"/>
+    <rect x="1045" y="105" width="71" height="111" rx="12" fill="#101112"/>
+    <path d="M1068 115h25m-21 91h17"/>
+  </g>
+  <path d="m925 76 30 18-30 18Z" fill="#ff684a"/>
+  <rect x="839" y="130" width="48" height="25" rx="3" fill="#34383b"/>
+  <rect x="895" y="130" width="48" height="25" rx="3" fill="#44352f"/>
+  <rect x="951" y="130" width="48" height="25" rx="3" fill="#2d3b38"/>
+  <path d="m1074 148 16 10-16 10Z" fill="#ff684a"/>
+  <path d="M1060 186h41" stroke="#414448" stroke-width="2" stroke-linecap="round"/>
+  <circle cx="1082" cy="186" r="3" fill="#ff684a"/>
+</svg>

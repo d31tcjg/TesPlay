@@ -1,0 +1,37 @@
+{
+  "name": "@canvas-stream-player/player",
+  "description": "TesPlayer: reusable WebCodecs, Canvas2D and Web Audio playback engine",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "UNLICENSED",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSES.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "build:harness": "esbuild harness/harness.js --bundle --format=esm --platform=browser --outfile=harness/harness.bundle.js",
+    "test:browser": "${HERMES_PYTHON:?set HERMES_PYTHON to the existing Hermes venv Python} harness/run-browser.py",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --config vitest.config.ts",
+    "lint": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@canvas-stream-player/contracts": "0.0.0",
+    "mediabunny": "1.60.0",
+    "mpg123-decoder": "1.0.3"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "typescript": "6.0.3",
+    "vitest": "5.0.2"
+  }
+}

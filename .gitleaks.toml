@@ -1,0 +1,18 @@
+title = "TesPlay secret scanning"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "SHA-256 source provenance entries, not credentials"
+condition = "AND"
+paths = ['''^vendor/tesplayer/UPSTREAM\.json$''']
+regexTarget = "line"
+regexes = ['''^\s*"packages/[^"\r\n]+": "[a-f0-9]{64}",?\s*$''']
+
+[[allowlists]]
+description = "Public engine feature identifier, not an API key"
+condition = "AND"
+paths = ['''^vendor/tesplayer/packages/contracts/src/features\.ts$''']
+regexTarget = "secret"
+regexes = ['''^vod-fmp4-encrypted-hls$''']

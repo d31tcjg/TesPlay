@@ -1,0 +1,93 @@
+/* Shared navigation material, selection lens and interaction feedback. */
+.glass-navigation {
+  --glass-foreground: #fff;
+  --glass-accent: #ffb084;
+  --glass-border: #ffffff22;
+  --glass-shadow: 0 2px 5px #00000026, 0 10px 30px #00000026;
+  --glass-resting: linear-gradient(155deg, #101113d9, #030405ed);
+  --glass-material: linear-gradient(180deg, #353639c7, #1d1e21d6);
+  --ease-spring: cubic-bezier(.32, .72, 0, 1);
+  --ease-out-quart: cubic-bezier(.25, 1, .5, 1);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+}
+.glass-navigation button { color: var(--glass-foreground); background: transparent; border: 0; flex-shrink: 0; cursor: pointer; }
+.glass-navigation button:focus-visible { outline: 2px solid var(--glass-accent); outline-offset: 3px; }
+.glass-navigation .navigation-icon {
+  position: relative; z-index: 2;
+  width: 44px; height: 44px; min-height: 44px;
+  display: grid; place-items: center; padding: 0; border-radius: 999px;
+  -webkit-tap-highlight-color: transparent;
+  transition: color 180ms var(--ease-out-quart), transform 200ms var(--ease-out-quart);
+}
+.glass-navigation .navigation-icon svg { width: 22px; height: 22px; stroke-width: 1.9; transition: transform 300ms var(--ease-spring); }
+.glass-navigation .navigation-icon[data-glass-active=true],
+.glass-navigation .navigation-icon[data-glass-preview=true] { color: var(--glass-accent); }
+.glass-navigation .navigation-icon[data-glass-preview=false] { color: var(--glass-foreground); }
+.glass-navigation .navigation-icon[data-glass-active=true] svg,
+.glass-navigation .navigation-icon[data-glass-preview=true] svg { transform: scale(1.06); stroke-width: 2.25; }
+.glass-navigation .navigation-icon:active svg { transform: scale(.92); }
+.glass-bar {
+  z-index: 35; display: flex; align-items: center;
+  border: 1px solid var(--glass-border); border-radius: 999px;
+  background: var(--glass-material);
+  -webkit-backdrop-filter: blur(3px) saturate(125%);
+  backdrop-filter: blur(3px) saturate(125%);
+  box-shadow: var(--glass-shadow), inset 0 1.5px 1px #ffffff50, inset 0 -1.5px 2px #ffffff60;
+  isolation: isolate;
+}
+.glass-bar::before {
+  content: ''; position: absolute; inset: 2px 8px auto; height: 33%;
+  border-radius: 100% 100% 28% 28% / 95% 95% 35% 35%;
+  background: linear-gradient(180deg, #00000038, #00000025); pointer-events: none; z-index: 0;
+}
+.glass-bar::after {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  box-shadow: inset 0 1px 1px #ffffff35, inset 0 -1px 1px #ffffff60; z-index: 5;
+}
+.glass-dock {
+  height: 70px;
+  padding: 5px 10px; gap: 0; touch-action: pan-y; user-select: none; -webkit-user-select: none;
+}
+.glass-dock > .navigation-icon {
+  width: calc(100% / var(--glass-count, 6)); height: 58px; flex: 1 1 0;
+  display: flex; flex-direction: column; justify-content: center; gap: 3px;
+}
+.glass-dock .navigation-icon svg { width: 25px; height: 25px; }
+.navigation-label { font-size: 11px; line-height: 14px; font-weight: 590; letter-spacing: .05px; white-space: nowrap; }
+/* The dark capsule is the resting state; the raised lens exists during motion. */
+.glass-selection {
+  --lens-lift: 0;
+  position: absolute; left: 0; top: 0; width: 86px; height: 58px; z-index: 0;
+  border-radius: 999px; pointer-events: none; background: var(--glass-resting);
+  border: .8px solid rgba(255,255,255,calc(.26 * var(--lens-lift)));
+  box-shadow: 0 2px 3px rgba(0,0,0,calc(.16 * var(--lens-lift))), 0 7px 15px rgba(0,0,0,calc(.12 * var(--lens-lift))),
+    inset 0 2px 3px rgba(0,0,0,calc(.32 * var(--lens-lift))), inset 0 -1.5px 2px rgba(255,255,255,calc(.53 * var(--lens-lift)));
+  transform-origin: center;
+}
+.glass-selection[hidden] { display: none; }
+.glass-selection::before {
+  content: ''; position: absolute; inset: 1px 7px auto; height: 24%; z-index: 1; opacity: var(--lens-lift);
+  background: linear-gradient(180deg, #0000004a, #00000005); border-radius: 70% 70% 35% 35% / 100% 100% 35% 35%;
+}
+.glass-selection::after {
+  content: ''; position: absolute; inset: -.5px; border-radius: inherit; padding: 1.5px;
+  background: conic-gradient(from 10deg, #ffffff10, #ffffff16 18%, #ff9e944d 28%, #66c9fa42 41%, #ffffff8a 51%, #c2e8b240 65%, #b6b4ff36 78%, #ffffff18 90%);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); mask-composite: exclude;
+  opacity: var(--lens-lift); z-index: 5;
+}
+.glass-optics { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: inherit; pointer-events: none; z-index: -1; }
+.glass-selection .glass-optics { z-index: 0; }
+.glass-bar[data-optics=ready] { background: transparent; -webkit-backdrop-filter: none; backdrop-filter: none; }
+.glass-selection[data-optics=ready] { z-index: 4; background: transparent; }
+@media(hover:hover) { .glass-navigation .navigation-icon:hover { background: #ffffff0c; } }
+@media(prefers-reduced-motion:reduce) {
+  .glass-navigation .navigation-icon, .glass-navigation .navigation-icon svg { transition: none; }
+  .glass-navigation .navigation-icon svg { transform: none !important; }
+}
+@media(prefers-reduced-transparency:reduce), (prefers-contrast:more) {
+  .glass-bar { background: #303033; -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .glass-optics { display: none; }
+  .glass-selection, .glass-selection[data-optics=ready] { z-index: 0; background: #0b0b0d; }
+}
+@media(prefers-contrast:more) { .glass-navigation { --glass-border: #ffffffb3; --glass-accent: #ffd7bf; } }

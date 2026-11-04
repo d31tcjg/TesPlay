@@ -1,0 +1,52 @@
+{
+  "name": "tesplay",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "dev": "NODE_ENV=development concurrently -k \"node --env-file-if-exists=.env --watch server/index.js\" \"vite --host 127.0.0.1\"",
+    "build": "npm run check:player && npm run build:player && tsc -b && vite build",
+    "start": "node --env-file-if-exists=.env server/index.js",
+    "test": "node --test tests/*.test.js",
+    "check": "tsc -b",
+    "build:player": "npm run build --workspace @canvas-stream-player/contracts && npm run build --workspace @canvas-stream-player/player",
+    "sync:player": "node scripts/sync-tesplayer.mjs",
+    "check:player": "node scripts/sync-tesplayer.mjs --check",
+    "pretest": "npm run check:player && npm run build:player"
+  },
+  "dependencies": {
+    "@canvas-stream-player/contracts": "0.0.0",
+    "@canvas-stream-player/player": "0.1.0",
+    "cookie-parser": "^1.4.7",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.1.0",
+    "fast-xml-parser": "^5.2.5",
+    "helmet": "^8.1.0",
+    "lucide-react": "^0.468.0",
+    "mediabunny": "1.60.0",
+    "qrcode": "^1.5.4",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  },
+  "devDependencies": {
+    "@types/qrcode": "^1.5.6",
+    "@types/react": "^19.1.13",
+    "@types/react-dom": "^19.1.9",
+    "@vitejs/plugin-react": "^5.0.3",
+    "concurrently": "^9.2.1",
+    "typescript": "~5.9.2",
+    "vite": "^7.1.7"
+  },
+  "workspaces": [
+    "vendor/tesplayer/packages/*"
+  ],
+  "overrides": {
+    "concurrently": {
+      "shell-quote": "1.11.0"
+    }
+  },
+  "license": "PolyForm-Noncommercial-1.0.0"
+}

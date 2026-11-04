@@ -1,0 +1,540 @@
+body:has(.cinema-remote) {
+  min-width: 320px;
+}
+.cinema-remote {
+  max-width: 480px;
+  margin: auto;
+  min-height: 100dvh;
+  padding-bottom: calc(68px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  background: #101012;
+  color: #f5f5f7;
+}
+.cinema-header {
+  padding: 22px 22px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.cinema-header .brand {
+  font-size: 24px;
+  gap: 7px;
+}
+.cinema-header .brand svg {
+  width: 22px;
+  height: 22px;
+}
+.cinema-connection {
+  font-size: 11px;
+  color: #a1a1aa;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+}
+.cinema-connection i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #74747c;
+}
+.cinema-connection i[data-online="true"] {
+  background: #76cba2;
+  box-shadow: 0 0 0 4px #76cba210;
+}
+.cinema-controls,
+.cinema-queue {
+  padding: 10px 22px 26px;
+  flex: 1;
+}
+.cinema-eyeline {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 10px;
+  letter-spacing: 1.8px;
+  font-weight: 700;
+  color: #92929c;
+  margin-bottom: 15px;
+}
+.cinema-eyeline b {
+  color: #f56545;
+  letter-spacing: 1px;
+}
+.cinema-artwork {
+  position: relative;
+  aspect-ratio: 1.55;
+  border-radius: 18px;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 20% 80%, #4b302b, transparent 70%),
+    linear-gradient(145deg, #25252d, #17171d);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 12px;
+  color: #827b7d;
+}
+.cinema-artwork img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 1;
+}
+.cinema-artwork span {
+  font-size: 13px;
+}
+.cinema-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: start;
+  margin: 20px 0 24px;
+}
+.cinema-title h1 {
+  font-size: 21px;
+  line-height: 1.3;
+  margin: 0;
+  font-weight: 750;
+  letter-spacing: -0.6px;
+}
+.cinema-title p {
+  font-size: 12px;
+  color: #92929c;
+  margin: 7px 0 0;
+}
+.cinema-source {
+  background: #f5654512;
+  color: #f58a74;
+  border: 1px solid #f5654525;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  border-radius: 7px;
+  padding: 6px 8px;
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cinema-remote input[type="range"] {
+  accent-color: #f56545;
+  width: 100%;
+  height: 18px;
+  margin: 0;
+  cursor: pointer;
+}
+.cinema-progress > div {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #92929c;
+  margin-top: 5px;
+  font-variant-numeric: tabular-nums;
+}
+.cinema-remote button {
+  cursor: pointer;
+}
+.cinema-remote button:disabled,
+.cinema-remote input:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.cinema-remote button:focus-visible {
+  outline: 2px solid #f58a74;
+  outline-offset: 4px;
+}
+.cinema-transport {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 36px;
+  margin: 22px 0;
+}
+.cinema-transport button {
+  background: none;
+  border: 0;
+  color: #c5c5cd;
+  min-width: 44px;
+  min-height: 44px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cinema-transport button > svg {
+  width: 30px;
+  height: 30px;
+}
+.cinema-transport button > span {
+  position: absolute;
+  font-size: 9px;
+  font-weight: 700;
+}
+.cinema-transport .cinema-play {
+  background: #f56545;
+  border-radius: 50%;
+  width: 66px;
+  height: 66px;
+  color: white;
+  box-shadow: 0 8px 25px #f5654525;
+}
+.cinema-play .busy {
+  padding: 0;
+  font-size: 0;
+}
+.cinema-play .busy svg {
+  width: 24px;
+  height: 24px;
+}
+.cinema-volume {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 12px 0 24px;
+}
+.cinema-volume button {
+  border: 0;
+  background: none;
+  color: #92929c;
+  min-width: 40px;
+  min-height: 44px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+}
+.cinema-volume output {
+  color: #92929c;
+  font-size: 11px;
+  min-width: 36px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.cinema-actions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border-top: 1px solid #24242a;
+  padding-top: 18px;
+}
+.cinema-actions button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-height: 54px;
+  background: none;
+  border: 0;
+  color: #92929c;
+  font-size: 10px;
+}
+.cinema-actions button[aria-pressed="true"],
+.cinema-actions button[aria-expanded="true"] {
+  color: #f58a74;
+}
+.cinema-help {
+  font-size: 12px;
+  color: #b9a08f;
+  line-height: 1.6;
+  text-align: center;
+}
+.cinema-options {
+  margin-top: 16px;
+  border: 1px solid #2b2b33;
+  border-radius: 14px;
+  padding: 16px;
+  background: #1a1a1f;
+  display: grid;
+  gap: 15px;
+}
+.cinema-options label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+}
+.cinema-options select {
+  width: auto;
+  background: #25252b;
+  border: 1px solid #393941;
+  border-radius: 8px;
+  padding: 8px;
+  color: inherit;
+}
+.cinema-options .text-button {
+  color: #f58a74;
+  text-align: left;
+}
+.cinema-browse {
+  margin-top: 24px;
+}
+.cinema-nav {
+  --glass-count: 3;
+  position: absolute;
+  left: 50%;
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  width: min(366px, calc(100% - 24px));
+}
+.cinema-pair {
+  padding: 45px 26px;
+  flex: 1;
+}
+.cinema-pair-icon {
+  color: #f58a74;
+  background: #f5654512;
+  border-radius: 18px;
+  display: grid;
+  place-items: center;
+  width: 76px;
+  height: 76px;
+  margin-bottom: 30px;
+}
+.cinema-pair h1 {
+  font-size: 32px;
+  letter-spacing: -1px;
+  margin: 12px 0;
+}
+.cinema-pair p,
+.cinema-queue > p {
+  color: #92929c;
+  line-height: 1.6;
+  font-size: 13px;
+}
+.cinema-pair form {
+  display: grid;
+  gap: 18px;
+  margin-top: 28px;
+}
+.cinema-pair label {
+  display: grid;
+  gap: 10px;
+  font-size: 12px;
+  color: #aaaab4;
+}
+.cinema-pair input {
+  font-size: 26px;
+  letter-spacing: 8px;
+  text-align: center;
+  padding: 16px;
+  background: #1c1c20;
+  border: 1px solid #33333b;
+  border-radius: 12px;
+  color: white;
+}
+.cinema-remote .remote-library {
+  flex: 1;
+  padding: 10px 22px 26px;
+  min-width: 0;
+}
+.cinema-remote .remote-library-heading h1 {
+  font-size: 24px;
+}
+.cinema-remote .inline-search {
+  margin: 18px 0;
+}
+.cinema-remote .inline-search input {
+  min-width: 0;
+}
+.cinema-remote .remote-source-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.cinema-remote .remote-source-buttons button {
+  padding: 10px;
+  max-width: 100%;
+  font-size: 12px;
+}
+.cinema-remote .page-section {
+  padding-left: 0;
+  padding-right: 0;
+}
+.cinema-remote .card-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.cinema-queue h1 {
+  font-size: 26px;
+  letter-spacing: -0.7px;
+  margin: 12px 0 4px;
+}
+.cinema-queue h1 > span {
+  font-size: 15px;
+  color: #92929c;
+  margin-left: 6px;
+}
+.cinema-queue-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 24px 0;
+}
+.cinema-queue-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 14px 0;
+  border-bottom: 1px solid #24242a;
+}
+.cinema-queue-item > span {
+  font-size: 11px;
+  color: #74747f;
+  width: 12px;
+}
+.cinema-queue-item button {
+  background: none;
+  border: 0;
+  color: #aaaab4;
+  min-height: 44px;
+}
+.cinema-queue-item > button:last-child {
+  min-width: 36px;
+}
+.cinema-queue-open {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  text-align: left;
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+}
+.cinema-queue-open img {
+  width: 42px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: 6px;
+}
+.cinema-queue-open span {
+  flex: 1;
+  min-width: 0;
+}
+.cinema-queue-open strong {
+  font-size: 13px;
+  display: block;
+  color: #eeeef2;
+  font-weight: 600;
+  line-height: 1.5;
+}
+.cinema-queue-open small,
+.cinema-saved small {
+  display: block;
+  font-size: 10px;
+  color: #92929c;
+  margin-top: 4px;
+}
+.cinema-empty {
+  text-align: center;
+  padding: 60px 12px;
+  color: #74747f;
+}
+.cinema-empty h2 {
+  font-size: 18px;
+  color: #dddde3;
+  margin-top: 22px;
+}
+.cinema-empty p {
+  font-size: 13px;
+  line-height: 1.6;
+  margin-bottom: 24px;
+}
+.cinema-saved {
+  display: grid;
+  gap: 8px;
+}
+.cinema-saved > button {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  text-align: left;
+  padding: 16px;
+  background: #202026;
+  border: 1px solid #33333b;
+  border-radius: 10px;
+  color: #eeeef2;
+}
+.cinema-error {
+  position: sticky;
+  bottom: 85px;
+  margin: 0 16px 12px;
+  padding: 12px 16px;
+  background: #402d29;
+  border: 1px solid #75483e;
+  border-radius: 12px;
+  font-size: 12px;
+  z-index: 21;
+  line-height: 1.5;
+}
+
+.remote-screen-list{display:grid;gap:10px;margin:20px 0}.remote-screen-list button{justify-content:flex-start}.cinema-header .text-button{font-size:12px}
+
+/* One viewport: only library/queue contents scroll, never the remote controls. */
+html:has(.cinema-remote),body:has(.cinema-remote){height:100%;min-width:0;overflow:hidden;overscroll-behavior:none}
+.cinema-remote{position:relative;width:100%;height:100dvh;min-height:0;overflow:hidden;padding-bottom:0}
+.cinema-header{display:grid;grid-template-columns:1fr auto 1fr;flex:none;padding:calc(12px + env(safe-area-inset-top)) 20px 10px;min-height:56px}
+.cinema-header .brand{justify-self:center;font-size:23px}
+.cinema-exit{justify-self:start;width:36px;height:36px;display:grid;place-items:center;background:#ffffff06;border:1px solid #ffffff18;border-radius:10px;color:#aaaab4;padding:0}
+.cinema-connection{justify-self:end;justify-content:center;width:36px;height:36px}
+.cinema-connection i{width:8px;height:8px}
+.cinema-status-text{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.cinema-controls{padding:12px 20px 18px;min-height:0;overflow:hidden;display:flex;flex-direction:column;justify-content:center;gap:clamp(5px,1.3dvh,12px)}
+.cinema-eyeline{flex:none;margin:0;font-size:9px;letter-spacing:1.2px}
+.cinema-artwork{flex:1;min-height:0;max-height:min(25dvh,200px);width:100%;aspect-ratio:auto;border-radius:14px}
+.cinema-title{flex:none;min-width:0;margin:0;gap:10px;align-items:center}
+.cinema-title>div{min-width:0;flex:1}
+.cinema-title h1{font-size:clamp(17px,2.8dvh,21px);line-height:1.25;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;overflow-wrap:anywhere}
+.cinema-title p{margin-top:5px;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cinema-source{max-width:80px;font-size:8px;flex:none}
+.cinema-progress{flex:none}
+.cinema-progress>.cinema-progress-heading{margin-top:0;align-items:center;min-height:34px}
+.cinema-progress-heading button{width:36px;height:34px;background:none;border:0;display:grid;place-items:center;color:#a1a1aa;padding:0}
+.cinema-progress-heading button[aria-pressed=true]{color:#f58a74}
+.cinema-transport{flex:none;display:grid;grid-template-columns:repeat(2,minmax(44px,1fr)) auto repeat(2,minmax(44px,1fr));gap:4px;margin:3px 0;justify-content:stretch}
+.cinema-transport button{min-width:44px;min-height:44px;padding:0}
+.cinema-transport button>svg{width:25px;height:25px}
+.cinema-transport .cinema-play{width:60px;height:60px;justify-self:center}
+.cinema-transport button[aria-pressed=true],.cinema-transport button[aria-expanded=true]{color:#f58a74}
+.cinema-help{flex:none;font-size:11px;line-height:1.35;margin:0;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+.cinema-volume{flex:none;min-height:40px;gap:10px;margin:0}
+.cinema-volume input{min-width:0}
+.cinema-remote .remote-library,.cinema-queue,.cinema-pair{min-height:0;overflow-y:auto;overscroll-behavior:contain;flex:1}
+.cinema-options{margin:0;padding:0;background:none;border:0}
+.cinema-error{position:absolute;bottom:calc(98px + env(safe-area-inset-bottom));left:12px;right:12px;margin:0;padding:10px 14px}
+@media(max-height:600px){.cinema-header{padding-top:calc(6px + env(safe-area-inset-top));padding-bottom:4px;min-height:46px}.cinema-controls{gap:5px;padding-top:6px;padding-bottom:8px}.cinema-artwork{max-height:20dvh}.cinema-title h1{font-size:17px}.cinema-transport .cinema-play{width:52px;height:52px}.cinema-volume{min-height:32px}}
+@media(orientation:landscape) and (max-height:500px){.cinema-remote{max-width:760px}.cinema-controls{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);grid-template-rows:auto auto 1fr auto;column-gap:18px;align-content:center}.cinema-eyeline{grid-column:1;grid-row:1}.cinema-artwork{grid-column:1;grid-row:2 / 5;max-height:none;height:100%;min-height:0}.cinema-title{grid-column:2;grid-row:1}.cinema-progress{grid-column:2;grid-row:2}.cinema-transport{grid-column:2;grid-row:3}.cinema-volume{grid-column:2;grid-row:4}.cinema-help{position:absolute;left:18px;bottom:calc(98px + env(safe-area-inset-bottom));max-width:40%;background:#101012d9;padding:3px 8px;border-radius:6px}}
+.cinema-remote input[type=range]{padding:0;min-height:0;border:0;border-radius:0;background:transparent;display:block}
+.cinema-video-sources { display: flex; flex: none; gap: 10px; padding: 0 20px 8px; }
+.cinema-video-sources button { display: flex; align-items: center; justify-content: center; gap: 8px; flex: 1; min-height: 44px; border: 1px solid #ffffff18; border-radius: 10px; background: #ffffff06; color: #eeeef2; font-size: 12px; }
+.remote-video-panel form { display: grid; gap: 15px; }
+.remote-video-panel label { display: grid; gap: 8px; }
+.remote-video-panel label > span, .remote-video-panel small { color: #a1a1aa; }
+.remote-video-panel input { min-width: 0; width: 100%; }
+.remote-video-panel .remote-video-compatibility { display: flex; flex-direction: row; align-items: flex-start; gap: 10px; margin-top: 18px; cursor: pointer; }
+.remote-video-panel .remote-video-compatibility input { width: 18px; min-height: 18px; height: 18px; margin: 2px 0 0; flex: none; accent-color: #f56545; }
+.remote-video-compatibility span { font-size: 13px; }
+.remote-video-compatibility small { display: block; margin-top: 5px; line-height: 1.4; }
+.remote-video-file { padding: 18px; border: 1px dashed #ffffff30; border-radius: 12px; background: #ffffff05; }
+.remote-video-file input { font-size: 12px; padding: 8px 0; background: none; border: 0; }
+.remote-video-selected { overflow-wrap: anywhere; }
+.remote-video-panel progress { display: block; width: 100%; accent-color: #f56545; margin-bottom: 8px; }
+.remote-video-panel [role=status] { font-size: 12px; color: #a1a1aa; }
+.remote-video-panel > .text-button { margin-top: 15px; min-height: 44px; }
+.remote-video-recent { margin-top: 24px; border-top: 1px solid #ffffff18; padding-top: 10px; }
+.remote-video-recent > div { display: flex; gap: 10px; border-bottom: 1px solid #ffffff10; }
+.remote-video-recent button { display: flex; align-items: center; gap: 10px; min-height: 48px; border: 0; background: none; color: #eeeef2; }
+.remote-video-recent button:first-child { flex: 1; min-width: 0; text-align: left; }
+.remote-video-recent button:last-child { flex: none; min-width: 44px; justify-content: center; }
+.remote-video-recent button span { flex: 1; overflow-wrap: anywhere; }
+.remote-video-recent button svg { flex: none; }
+@media(orientation:landscape) and (max-height:500px){.cinema-controls{gap:4px 18px;padding-top:4px;padding-bottom:4px;grid-template-rows:auto auto auto auto}.cinema-title h1{font-size:15px}.cinema-title p{margin-top:3px;font-size:10px}.cinema-progress-heading button{width:36px}.cinema-artwork{grid-row:2 / 5}}
+
+/* Reserve control space; scrollable library and queue content passes beneath the glass. */
+.cinema-controls { margin-bottom: calc(94px + env(safe-area-inset-bottom, 0px)); }
+.cinema-remote .remote-library, .cinema-queue { padding-bottom: calc(106px + env(safe-area-inset-bottom, 0px)); }
+
+.cinema-transport.is-live { grid-template-columns: minmax(44px, 1fr) auto minmax(44px, 1fr); }

@@ -1,0 +1,1 @@
+Sutro's SVG artwork is adapted from https://github.com/muxinc/player.style/tree/main/themes/sutro under the MIT license. The controls in src/SutroIcon.tsx and src/TesPlayer.tsx connect this artwork and layout to the canvas-stream-player engine. TesPlay always displays the volume slider and adds centered touch controls and double-tap seeking.

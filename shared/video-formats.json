@@ -1,0 +1,5 @@
+{
+  "direct": [".mp4", ".m4v", ".mov", ".webm", ".mkv", ".ts", ".mts", ".m2ts"],
+  "convert": [".avi", ".divx", ".wmv", ".asf", ".flv", ".f4v", ".mpg", ".mpeg", ".mpe", ".vob", ".3gp", ".3g2", ".ogv", ".rm", ".rmvb", ".mxf"],
+  "playlists": [".m3u8", ".m3u"]
+}

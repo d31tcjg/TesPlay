@@ -1,0 +1,43 @@
+name: Bug report
+description: Report a reproducible TesPlay problem.
+body:
+  - type: markdown
+    attributes:
+      value: "TesPlay has one maintainer and no dedicated support service. Reports are reviewed when time permits. Never include credentials, environment files, databases, personal media information or sign-in/pairing QR codes."
+  - type: input
+    id: version
+    attributes:
+      label: TesPlay version or commit
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Host OS/install method, browser, and vehicle model/year/processor/firmware if relevant. Do not include a VIN or registration plate.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: Expected and actual result
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Sanitized logs or screenshots
+      description: Remove secrets, personal details and QR codes before attaching anything.
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Before submitting
+      options:
+        - label: I checked existing issues and removed credentials and personal data from this report.
+          required: true

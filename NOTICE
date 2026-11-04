@@ -1,0 +1,11 @@
+Required Notice: Copyright 2026 rdvnit. TesPlay — https://github.com/rdvnit/TesPlay
+
+TesPlay's original source code is offered under the PolyForm Noncommercial
+License 1.0.0 in LICENSE. Preserve the Required Notice above when distributing
+copies or modifications.
+
+This grant includes the owner-authored TesPlayer engine and contracts bundled
+in vendor/tesplayer. Their package metadata records the original upstream
+snapshot; the license grant for the copy distributed here is in LICENSE.
+Third-party code, fonts and dependencies retain their own licenses. See
+docs/credits.md, public/licenses/ and vendor/sutro/LICENSE.

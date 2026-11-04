@@ -1,0 +1,18 @@
+.season-rail { margin: 20px 0 0; }
+.season-rail-trigger { width:100%; min-height:48px; display:flex; align-items:center; justify-content:space-between; gap:16px; padding:0 16px; border:1px solid #ffffff16; border-radius:10px; background:#252229; color:inherit; font-size:16px; font-weight:600; font-variant-numeric:tabular-nums; }
+.season-rail-trigger > span { display:flex; align-items:center; gap:18px; }
+.season-rail-trigger i { width:1px; height:17px; background:#ffffff25; }
+.season-rail-trigger > svg { color:#b2a9b5; transition:transform .15s; }
+.season-rail-trigger[aria-expanded=true] > svg { transform:rotate(180deg); }
+.season-rail-panel { display:grid; grid-template-columns:55px minmax(0,1fr); gap:13px; margin-top:13px; }
+.season-rail-seasons { display:flex; flex-direction:column; gap:7px; padding-right:10px; border-right:1px solid #ffffff12; max-height:280px; overflow:auto; }
+.season-rail-panel button { display:flex; align-items:center; justify-content:center; min-width:44px; min-height:44px; border-radius:9px; background:#28242c; color:#e3dfe6; font-size:16px; font-weight:600; font-variant-numeric:tabular-nums; }
+.season-rail-seasons button { background:transparent; font-size:14px; flex-shrink:0; }
+.season-rail-panel button[aria-pressed=true] { background:var(--accent); color:#fff; }
+.season-rail-panel button:disabled { cursor:default; }
+.season-rail-episodes { display:grid; grid-template-columns:repeat(auto-fill,minmax(44px,1fr)); align-content:start; gap:7px; max-height:280px; overflow:auto; padding:1px 3px 3px 1px; }
+.remote-episodes-error { margin:14px 0; }
+.remote-episodes-error button { margin-top:8px; }
+.remote-series-heading { display:flex; align-items:center; gap:15px; margin:22px 0 10px; }
+.remote-series-heading h2 { font-size:22px; }
+@media(prefers-reduced-motion:reduce) { .season-rail-trigger > svg { transition:none; } }

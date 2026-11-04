@@ -1,0 +1,44 @@
+name: Repository privacy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Scan fetched history for secrets
+        run: |
+          docker run --rm \
+            -v "$GITHUB_WORKSPACE:/repo:ro" \
+            -e GIT_CONFIG_COUNT=1 \
+            -e GIT_CONFIG_KEY_0=safe.directory \
+            -e GIT_CONFIG_VALUE_0=/repo \
+            ghcr.io/gitleaks/gitleaks@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f \
+            git /repo --config /repo/.gitleaks.toml --log-opts="--all" --redact=100 --no-banner
+      - name: Keep commit contact addresses private
+        run: |
+          python3 - <<'PY'
+          import subprocess
+          emails = set(subprocess.check_output(
+              ['git', 'log', '--all', '--format=%ae%n%ce'], text=True
+          ).splitlines())
+          unexpected = [email for email in emails if not (
+              email.endswith('@users.noreply.github.com') or email == 'noreply@github.com'
+          )]
+          if unexpected:
+              raise SystemExit('Use a GitHub noreply email address for commits; personal addresses must not enter repository history.')
+          print('Commit email privacy check passed.')
+          PY

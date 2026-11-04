@@ -1,0 +1,20 @@
+.episode-selector { position:relative; display:flex; justify-content:flex-end; margin:22px 0; }
+.episode-picker-trigger { display:flex; align-items:center; justify-content:space-between; gap:24px; min-width:162px; min-height:44px; padding:0 15px; border:1px solid #ffffff19; border-radius:8px; background:#29232e; color:inherit; font-size:15px; font-weight:600; font-variant-numeric:tabular-nums; }
+.episode-picker-trigger > span { display:flex; align-items:center; gap:15px; }
+.episode-picker-trigger i { width:1px; height:15px; background:#ffffff24; }
+.episode-picker-trigger > svg { color:#bcb1c4; transition:transform .15s; }
+.episode-picker-trigger[aria-expanded=true] > svg { transform:rotate(180deg); }
+.episode-picker-popover { position:absolute; right:0; top:calc(100% + 8px); z-index:20; width:min(454px,100%); max-height:min(340px,calc(100dvh - 130px)); overflow:auto; padding:18px; border:1px solid #ffffff24; border-radius:11px; background:#25202b; box-shadow:0 16px 35px #0007; }
+.episode-selector.compact .episode-picker-popover { top:auto; bottom:calc(100% + 8px); }
+.episode-picker-row { display:grid; grid-template-columns:20px minmax(0,1fr); align-items:start; gap:8px; }
+.episode-picker-mark { padding-top:14px; color:#b0a4b8; font-size:12px; font-weight:600; }
+.episode-picker-seasons { display:flex; flex-wrap:wrap; gap:8px; }
+.episode-picker-grid { display:grid; grid-template-columns:repeat(6,minmax(44px,1fr)); gap:8px; }
+.episode-picker-popover button { display:flex; align-items:center; justify-content:center; min-width:44px; min-height:44px; padding:0 4px; border-radius:7px; background:#302936; color:inherit; font-size:16px; font-weight:600; font-variant-numeric:tabular-nums; }
+.episode-picker-seasons button { flex:1; }
+.episode-picker-popover button:hover { background:#44374d; }
+.episode-picker-popover button[aria-pressed=true] { background:var(--accent); color:white; }
+.episode-picker-divider { height:1px; margin:14px 0; background:#ffffff13; }
+@media(max-width:450px) { .episode-picker-popover { padding:14px; } .episode-picker-grid { grid-template-columns:repeat(5,minmax(44px,1fr)); } }
+@media(max-width:360px) { .episode-picker-grid { grid-template-columns:repeat(4,minmax(44px,1fr)); } }
+@media(prefers-reduced-motion:reduce) { .episode-picker-trigger > svg { transition:none; } }

@@ -1,0 +1,49 @@
+name: TesPlay checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tesplay-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: "22.22.3"
+          cache: npm
+      - run: npm ci
+      - name: Check dependency security
+        run: npm audit --audit-level=high
+      - name: Install video conversion tools for format integration tests
+        timeout-minutes: 4
+        run: |
+          # Avoid a throttled runner mirror while retaining Ubuntu signature checks.
+          cat > "$RUNNER_TEMP/tesplay-ubuntu.list" <<'SOURCES'
+          deb [signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] https://archive.ubuntu.com/ubuntu noble main universe
+          deb [signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] https://archive.ubuntu.com/ubuntu noble-updates main universe
+          deb [signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] https://security.ubuntu.com/ubuntu noble-security main universe
+          SOURCES
+          apt_options=(-o "Dir::Etc::sourcelist=$RUNNER_TEMP/tesplay-ubuntu.list" -o Dir::Etc::sourceparts=- -o Acquire::Retries=2 -o Acquire::https::Timeout=30)
+          sudo apt-get "${apt_options[@]}" update
+          sudo apt-get "${apt_options[@]}" install -y --no-install-recommends ffmpeg
+      - name: Verify bundle provenance and run regression tests
+        run: npm test
+      - name: Build the complete website and bundled engine
+        run: npm run build
+      - name: Verify Docker packaging
+        run: docker build --tag tesplay:ci .

@@ -1,0 +1,8 @@
+TesPlayer engine and contracts are vendored from https://github.com/rdvnit/TesPlayer. See vendor/tesplayer/UPSTREAM.json for the verified upstream revision and file digests. The owner-authored copy distributed with TesPlay is covered by the repository LICENSE and NOTICE; third-party components retain the terms below.
+
+mediabunny 1.60.0: MPL-2.0. Copyright Vanilagy. Full license accompanies this notice. Source: https://github.com/Vanilagy/mediabunny (npm package mediabunny@1.60.0).
+
+mpg123-decoder 1.0.3 and @wasm-audio-decoders/common 9.0.7: original wrapper source is MIT, author Ethan Halsall. Source and build instructions: https://github.com/eshaz/wasm-audio-decoders . Embedded mpg123 decoding code has separate LGPL-2.1 terms: https://github.com/madebr/mpg123 . LICENSE-mpg123.txt preserves those terms. The decoder is emitted as the independent mpeg-audio-decoder JavaScript module; replacing/rebuilding that module does not require changing TesPlay's host UI. Preserve library sources, build scripts and notices when distributing modifications.
+
+@eshaz/web-worker 1.2.2: Apache-2.0; accompanying license retained.
+The common decoder embeds Mark Adler's puff decompressor under the zlib license. Its source copyright/license header is retained in LICENSE-puff.txt.

@@ -1,0 +1,16 @@
+ARG NODE_IMAGE=node:22-bookworm-slim
+FROM ${NODE_IMAGE}
+ARG YT_DLP_VERSION=2026.08.19
+RUN apt-get update && apt-get install -y --no-install-recommends python3 python3-venv ca-certificates \
+    && python3 -m venv /opt/yt-dlp \
+    && /opt/yt-dlp/bin/pip install --no-cache-dir "yt-dlp[default]==${YT_DLP_VERSION}" \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+COPY package.json package-lock.json ./
+COPY vendor ./vendor
+RUN npm ci --omit=dev && npm cache clean --force
+COPY server ./server
+ENV NODE_ENV=production YOUTUBE_ENABLED=true YT_DLP_PATH=/opt/yt-dlp/bin/yt-dlp
+USER node
+EXPOSE 4180
+CMD ["node", "server/youtube-service.js"]

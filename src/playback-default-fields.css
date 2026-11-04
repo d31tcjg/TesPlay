@@ -1,0 +1,5 @@
+.playback-default-fields { display: grid; gap: 13px; min-width: 0; margin: 0; padding: 18px 0 0; border: 0; border-top: 1px solid var(--line); }
+.playback-default-fields legend { padding: 0 8px 0 0; font-size: 14px; font-weight: 600; }
+.playback-default-fields > p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.playback-default-fields select { width: 100%; min-width: 0; }
+@media (max-width: 560px) { .playback-default-fields select { font-size: 16px; } }

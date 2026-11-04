@@ -1,0 +1,92 @@
+# The legacy Compose project/volume name preserves existing installations.
+name: aperture
+
+services:
+  app:
+    build:
+      context: .
+      args:
+        NODE_IMAGE: ${NODE_IMAGE:-node:22-bookworm-slim}
+    image: ${APP_IMAGE:-tesplay:local}
+    restart: unless-stopped
+    init: true
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: "4174"
+      DATA_DIR: /app/data
+      PUBLIC_URL: ${PUBLIC_URL:-http://127.0.0.1:4174}
+      TRUST_PROXY: ${TRUST_PROXY:-0}
+      SERVER_NAME: ${SERVER_NAME:-TesPlay}
+      REMOTE_ENABLED: ${REMOTE_ENABLED:-true}
+      YOUTUBE_RESOLVER_URL: http://youtube:4180
+      SETUP_TOKEN: ${SETUP_TOKEN:-}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+    ports:
+      - "127.0.0.1:${APP_HOST_PORT:-4174}:4174"
+    volumes:
+      - aperture-data:/app/data
+      - type: bind
+        source: ${MEDIA_DIR:-./media}
+        target: /media
+        read_only: true
+        bind:
+          create_host_path: false
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 20s
+
+  # Opt-in resolver, reachable only on the internal Compose network.
+  youtube:
+    profiles: [youtube]
+    build:
+      context: .
+      dockerfile: Dockerfile.youtube
+      args:
+        NODE_IMAGE: ${NODE_IMAGE:-node:22-bookworm-slim}
+        YT_DLP_VERSION: ${YT_DLP_VERSION:-2026.08.19}
+    image: ${YOUTUBE_IMAGE:-tesplay-youtube:local}
+    restart: unless-stopped
+    init: true
+    environment:
+      YOUTUBE_ENABLED: "true"
+      YT_DLP_PATH: /opt/yt-dlp/bin/yt-dlp
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 20s
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4180/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+
+  # Optional: reuses a remotely managed tunnel. It does not create DNS or Access rules.
+  cloudflared:
+    image: ${CLOUDFLARED_IMAGE:-cloudflare/cloudflared:latest}
+    profiles: [tunnel]
+    restart: unless-stopped
+    command: ["tunnel", "--no-autoupdate", "run"]
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}
+    depends_on:
+      app:
+        condition: service_healthy
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  aperture-data:
+    name: ${DATA_VOLUME_NAME:-aperture-data}
