@@ -4,6 +4,8 @@
 
 ## Tesla rear screen
 
+Launch your deployed TesPlay URL from a link in a YouTube video description: use your own video (**Private recommended**), open it in the Tesla rear-screen YouTube app, expand the description and tap the website link. For a private video, sign into an account allowed to view it. Follow the [rear-screen walkthrough and screenshots](../README.md#on-the-rear-screen) for the full setup.
+
 On a Tesla browser reporting 1280 × 720 (measured Model 3 rear-browser size) or 1280 × 800 (supplied panel specification), TesPlay opens the Soft Glass phone-remote screen automatically. Detection uses the reported display size and pixel ratio, including CSS-pixel rounding, rather than the browser viewport. A desktop or tablet at the same resolution keeps the regular interface; other Tesla display resolutions also keep it.
 
 Scan the QR on your phone. A signed-out screen asks you to sign in and approve it on the phone, then opens that phone's remote automatically. An authorized screen pairs a guest phone directly. Once connected, the QR disappears and a short icon guide, connection indicator and Disconnect remote button appear. Media selection and playback controls stay on the phone; video fills the rear-screen page. Disconnect stops playback, revokes guest remotes and replaces the pairing code. Some browser versions require one tap to enable sound. Exact vehicle-model identification and the browser's surrounding system UI remain firmware-dependent; verify the flow on the actual rear screen.

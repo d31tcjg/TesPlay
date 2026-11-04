@@ -13,6 +13,7 @@
 <p align="center">
   <a href="#quick-start"><strong>Get started</strong></a> &nbsp; · &nbsp;
   <a href="#on-your-tesla">Tesla setup</a> &nbsp; · &nbsp;
+  <a href="#on-the-rear-screen">Rear screen</a> &nbsp; · &nbsp;
   <a href="#screenshots">Screenshots</a> &nbsp; · &nbsp;
   <a href="docs/usage.md">User guide</a> &nbsp; · &nbsp;
   <a href="#license--credit">License</a>
@@ -146,6 +147,45 @@ docker compose --profile tunnel up -d --build
 If you use Cloudflare Access, both your phone and vehicle browser must complete that login as well as TesPlay sign-in. For a proxy running on the Docker host, the upstream is `http://127.0.0.1:4174`. `localhost` in a QR link refers to the device scanning it, so leave loopback URLs for host-only testing. See the [deployment guide](docs/deployment.md) for network, OAuth, backup and acceptance details.
 
 </details>
+
+## On the rear screen
+
+**Launch your deployed TesPlay website through a link in a YouTube video description.** Use your own video; setting its visibility to **Private is recommended**.
+
+### 1. Prepare your launch link
+
+Create or choose a regular YouTube video you can access on the car. Add your deployed TesPlay **HTTPS address** to its description, for example:
+
+```text
+Open TesPlay:
+https://media.example.com
+```
+
+Replace the example with your installation's address. Use the website URL, not the GitHub repository URL or `localhost`. For a private video, the rear-screen YouTube app must be signed into an account allowed to view it. See [YouTube's private-video guidance](https://support.google.com/youtube/answer/77272).
+
+### 2. Open it on the Tesla rear screen
+
+While safely parked with the vehicle in Park:
+
+1. Open **YouTube on the rear screen** and open your video.
+2. Expand the video's **description** and tap the link to your deployed TesPlay website. Confirm opening the website if prompted.
+3. TesPlay opens in the rear-screen browser. On supported rear-screen displays, its phone-pairing interface appears automatically.
+4. **Scan the QR code with your phone.** If the screen is signed out, sign in on your phone, match the displayed code and approve the screen. An already authorized screen can pair your phone directly.
+5. On your phone, open **Browse**, choose a title and press **Play**. Video fills the rear screen; use the phone to pause, seek and adjust volume. If prompted, tap the rear screen once to enable playback or sound.
+
+If the description URL is not clickable, use a regular video rather than a Short and check [YouTube's external-link requirements](https://support.google.com/youtube/answer/13748639), including access to advanced features.
+
+The YouTube video supplies the launch link. Opening TesPlay this way does **not** require enabling TesPlay's optional YouTube playback resolver.
+
+| Pair your phone | Ready to choose a title |
+| :--- | :--- |
+| ![TesPlay rear-screen interface waiting for a phone to scan the pairing QR](docs/screenshots/rear-pairing.png) | ![TesPlay rear screen after the phone has connected](docs/screenshots/rear-connected.png) |
+
+<p align="center">
+  <img src="docs/screenshots/rear-phone-remote.png" alt="TesPlay phone remote paired with the rear screen" width="280">
+</p>
+
+<sub>Interface previews use a disposable demo installation with simulated rear-screen browser properties. The QR points to a nonfunctional example address. Browser controls and link-opening behavior can vary with vehicle firmware.</sub>
 
 ## Tested vehicles
 
