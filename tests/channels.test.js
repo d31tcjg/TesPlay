@@ -82,10 +82,15 @@ test('Channels connection can be created and tests its JSON status',async t=>{
 });
 
 test('Channels status failures are clean for non-JSON and HTTP errors',async t=>{
-  for(const result of ['<html>invalid</html>',null,[]]) {
+  for(const result of [null,[]]) {
     const f=await fixture(t,{data:{'/status':result}});
     const r=await f.post('/api/connections/c1/test',{});
     assert.equal(r.status,502); assert.match((await r.json()).error,/Channels DVR/);
+  }
+  { // v2: an HTML page means the address is not the DVR API (see tests/channels-guide.test.js).
+    const f=await fixture(t,{data:{'/status':'<html>invalid</html>'}});
+    const r=await f.post('/api/connections/c1/test',{});
+    assert.equal(r.status,400); assert.match((await r.json()).error,/Channels DVR refused this address/);
   }
   const f=await fixture(t,{remoteData:async()=>{throw Object.assign(new Error('Provider returned HTTP 500.'),{status:502});}});
   const r=await f.post('/api/connections/c1/test',{});
@@ -183,7 +188,8 @@ test('Channels status handles actual synthetic HTTP success, invalid JSON and se
   assert.equal((await f.post('/api/connections/c1/test',{})).status,200);
   for(mode of ['html','error']) {
     const response=await f.post('/api/connections/c1/test',{});
-    assert.equal(response.status,502);assert.match((await response.json()).error,/Channels DVR/);
+    // v2: an HTML page is the friendly "refused this address" 400; a 5xx stays a 502.
+    assert.equal(response.status,mode==='html'?400:502);assert.match((await response.json()).error,/Channels DVR/);
   }
 });
 

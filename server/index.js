@@ -191,7 +191,7 @@ export async function createApp(options = {}) {
   app.use("/api", requireAuth);
   app.use('/api',(req,_res,next)=>{
     if (req.session.scope !== 'remote') return next();
-    const allowedGet = req.method === 'GET' && (['/connections','/catalog','/episodes','/playback/options','/library/state','/settings','/player/preferences'].includes(req.path) || /^\/media\//.test(req.path) || /^\/plex\/[^/]+\/(sections|hubs|list|continuity)$/.test(req.path) || /^\/stremio\/[^/]+\/catalogs$/.test(req.path) || /^\/youtube\/[^/]+\/(feed|subscriptions|playlists|search|channel\/[^/]+\/videos|playlist\/[^/]+\/videos)$/.test(req.path));
+    const allowedGet = req.method === 'GET' && (['/connections','/catalog','/episodes','/playback/options','/library/state','/settings','/player/preferences'].includes(req.path) || /^\/media\//.test(req.path) || /^\/plex\/[^/]+\/(sections|hubs|list|continuity)$/.test(req.path) || /^\/channels\/[^/]+\/(guide|now|airing)$/.test(req.path) || /^\/stremio\/[^/]+\/catalogs$/.test(req.path) || /^\/youtube\/[^/]+\/(feed|subscriptions|playlists|search|channel\/[^/]+\/videos|playlist\/[^/]+\/videos)$/.test(req.path));
     const allowedPost = req.method === 'POST' && ['/auth/logout','/library/favorites','/library/stars','/library/queue'].includes(req.path);
     return allowedGet || allowedPost ? next() : next(httpError(403,'This browser is authorized as a remote only.'));
   });

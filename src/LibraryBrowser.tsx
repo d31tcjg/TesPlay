@@ -1,5 +1,5 @@
 import { RefreshButton } from "./components";
-import { useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, ChevronLeft, Clock, Film, Folder, Radio, Search, Star, Tv, Info } from 'lucide-react';
 import { api, errorMessage } from './api';
 import { Busy, Card, Empty, Row, MediaDetailsContext } from './components';
@@ -12,6 +12,7 @@ import { filterYouTubeItems, filterYouTubeShelves } from './youtube-visibility';
 import type { CatalogResult, LibraryMode, LibraryShelf, PlexSection } from './library-browser';
 import { bundleIptvShelves, isIptv } from './iptv-library';
 import IptvBundleBrowser from './IptvBundleBrowser';
+const ChannelsGuide = lazy(() => import('./ChannelsGuide'));
 type Props = {connections:Connection[];library:Library;hideYouTubeShorts?:boolean;onOpen:(i:MediaItem)=>void;onBrowseSeries?:(i:MediaItem)=>void;onFavorite:(i:MediaItem)=>void;onStar:(s:Starred)=>void;onConnect:()=>void;onYouTube:()=>void;onGuide:(i:MediaItem)=>void;query:string};
 const kinds=[['live','Live TV',Radio],['movie','Movies',Film],['series','TV shows',Tv]] as const;
 const saved=(library:Library,item:MediaItem)=>[...library.favorites,...(library.queue||[])].some(i=>itemKey(i)===itemKey(item));
@@ -121,6 +122,8 @@ export default function LibraryBrowser({mode,selectedConnection,initialParent,in
   if(mode==='catalog'&&selectedConnection) return <section className="page-section library-page">{isIptv(selectedConnection)&&!initialParent?bundle(selectedConnection,initialKind,initialCategory):selectedConnection.type==='plex'?<PlexBrowser key={`${selectedConnection.id}:${initialParent?.id||''}`} connection={selectedConnection} initialParent={initialParent} props={props}/>:<SourceBrowser key={`${selectedConnection.id}:${initialParent?.id||''}:${initialKind}`} connection={selectedConnection} initialParent={initialParent} initialKind={initialKind} initialCategory={initialCategory} props={props}/>}</section>;
   if(detail) return <section className="page-section library-page">{isIptv(detail.connection)?bundle(detail.connection,detail.kind,undefined,()=>setDetail(null)):<SourceBrowser key={detail.id} connection={detail.connection} initialParent={detail.parent} initialKind={detail.kind} initialCategory={detail.category} props={props} onBack={()=>setDetail(null)}/>}</section>;
   const allShelves=bundleIptvShelves(sources.flatMap(c=>shelves[c.id]||[]));
+  // Channels DVR gets a real TV guide in Live TV; other live sources keep their shelves below it.
+  const guideConnections=mode==='live'?sources.filter(c=>c.type==='channels'&&c.configured!==false&&(!c.access||c.access.kinds.includes('live'))&&(!filterId||c.id===filterId)):[];
   const matches=(i:MediaItem)=>!query||`${i.title} ${i.subtitle||''}`.toLowerCase().includes(query.toLowerCase());
   const visible=filterYouTubeShelves(allShelves,props.hideYouTubeShorts||false,props.connections,props.library.progress).map(s=>({...s,items:s.items.filter(matches)})).filter(s=>s.items.length);
   return <section className="page-section library-page"><div className="library-layout">
@@ -128,9 +131,10 @@ export default function LibraryBrowser({mode,selectedConnection,initialParent,in
     <div className="library-main"><div className="library-heading"><div><span className="eyebrow">YOUR COLLECTION, TOGETHER</span><h1>{mode==='series'?'TV shows':mode==='live'?'Live TV':'Movies'}</h1><p>Browse your collection by connection.</p></div><RefreshButton label="Refresh all libraries" onRefresh={()=>setRefresh(n=>n+1)}/></div>
       <SearchBox query={draft} onChange={setDraft}/>
       {sources.map(c=>errors[c.id]&&<div className="home-source-status" role="status" key={c.id}><div><strong>{c.name}</strong><p>{errors[c.id]}</p></div></div>)}
+      {guideConnections.length>0&&<Suspense fallback={<Busy label="Loading the TV guide…"/>}><ChannelsGuide connections={guideConnections} library={props.library} onOpen={props.onOpen} onFavorite={props.onFavorite}/></Suspense>}
       {visible.map(s=><Row key={s.id} title={s.title} items={s.items} onOpen={props.onOpen} onFavorite={props.onFavorite} isSaved={i=>saved(props.library,i)} progress={i=>progress(props.library,i)} more={()=>setDetail(s)}/>)}
       {pending.length>0&&<Busy label="Loading connected libraries…"/>}
-      {!pending.length&&!visible.length&&<Empty title={query?'No matching titles':'No titles available'} action={<button className="button ghost" onClick={props.onConnect}>Connections<ArrowRight size={16}/></button>}>{props.hideYouTubeShorts&&allShelves.some(s=>s.items.some(matches))?'Short videos are hidden. Change this in Settings or browse another library.':query?'Search within a source to search its complete library.':'Choose a connection or library to browse.'}</Empty>}
+      {!pending.length&&!visible.length&&!guideConnections.length&&<Empty title={query?'No matching titles':'No titles available'} action={<button className="button ghost" onClick={props.onConnect}>Connections<ArrowRight size={16}/></button>}>{props.hideYouTubeShorts&&allShelves.some(s=>s.items.some(matches))?'Short videos are hidden. Change this in Settings or browse another library.':query?'Search within a source to search its complete library.':'Choose a connection or library to browse.'}</Empty>}
     </div>
   </div></section>;
 }

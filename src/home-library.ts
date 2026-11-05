@@ -61,6 +61,10 @@ export async function loadHomeConnection(c: Connection, request: Request, signal
       collect(await Promise.allSettled(folders.map(f => catalog(c.type==='plex' && f.contentKind==='series'?'episode':'all', f.id))), folders.map(f => f.title), (r, index) => shelf(folders[index].id, `${c.name} · ${folders[index].title}`, r.items, { parent: folders[index] }));
       // Keep folders browsable if every child library failed, without substituting demos.
       if (!shelves.length && root.items.length) shelf('libraries', c.name, root.items);
+    } else if (c.type === 'channels') {
+      // Newest unwatched recordings across all shows (server-side `channels:recent`).
+      // "View all" opens the connection's folders: a mixed show/movie list has no single episode view.
+      collect(await Promise.allSettled([catalog('all','channels:recent')]),['Recently recorded'],r=>shelf('recent',`${c.name} · Recently recorded`,r.items));
     } else if (c.type === 'm3u') {
       const categories=stars.filter(s=>s.connectionId===c.id && s.kind==='category' && (!Array.isArray(c.loadedCategories)||c.loadedCategories.includes(s.id)));
       collect(await Promise.allSettled(categories.map(s=>catalog('live','',s.id))),categories.map(s=>s.title),(r,index)=>shelf(categories[index].id,`${c.name} · Live TV · ${categories[index].title}`,r.items,{kind:'live',category:categories[index].id}));

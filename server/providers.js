@@ -324,6 +324,20 @@ export function registerProviderRoutes(app, ctx, dependencies = {}) {
         }).filter(x => permitted(req,c,x));
     }
     if (parent.startsWith('show:')) return channelsEpisodes(req, c, parent.slice(5), force);
+    if (parent === 'channels:recent') {
+      // Cross-show "Recently recorded": newest finished, unwatched episodes and movies.
+      const [episodes, movies] = await Promise.all([
+        channelsList(c, '/api/v1/episodes', force), channelsList(c, '/api/v1/movies', force).catch(() => []),
+      ]);
+      const usable = x => !x.cancelled && !x.corrupted && !x.watched && x.processed !== false && channelsFileId.test(String(x.id));
+      return [...episodes.filter(usable).map(x => [x, false]), ...movies.filter(usable).map(x => [x, true])]
+        .sort(([a], [b]) => channelsTime(b.created_at)-channelsTime(a.created_at))
+        .map(([x, movie]) => {
+          const item = channelsRecording(req, c, x, movie);
+          if (!movie) item.subtitle = cleanText(x.title);
+          return item;
+        }).filter(x => permitted(req, c, x)).slice(0, 60);
+    }
     if (parent === 'channels:movies') {
       ensure(req, c, {type:'movie'});
       return (await channelsList(c, '/api/v1/movies', force))
@@ -332,6 +346,126 @@ export function registerProviderRoutes(app, ctx, dependencies = {}) {
     }
     throw providerError('Invalid Channels DVR folder.');
   }
+  // ---- Channels DVR guide (v2) ----
+  const guideNow = () => Math.floor((dependencies.now ? dependencies.now() : Date.now()) / 1000);
+  const guideCache = new Map();
+  const GUIDE_TTL = 60, GUIDE_ART_BUDGET = 400;
+  function guideFetch(c, start, hours, path) {
+    const key = `${cacheKey(c)}:${path ? 'now' : `${start}:${hours}`}`;
+    const hit = guideCache.get(key);
+    if (hit && hit.expires > guideNow()) return hit.promise;
+    const promise = channelsRequest(c, path || `/devices/ANY/guide?time=${start}&duration=${hours * 3600}`).then(data => {
+      if (!Array.isArray(data)) throw providerError('Channels DVR returned an invalid guide.', 502);
+      return data;
+    });
+    guideCache.set(key, { promise, expires: guideNow() + GUIDE_TTL, start, hours, prefix: cacheKey(c) });
+    if (guideCache.size > 12) guideCache.delete(guideCache.keys().next().value);
+    promise.catch(() => { if (guideCache.get(key)?.promise === promise) guideCache.delete(key); });
+    return promise;
+  }
+  /** A live (unexpired) already-requested window covering `time`, or undefined. Never fetches. */
+  function guidePeek(c, time) {
+    const prefix = cacheKey(c);
+    for (const entry of guideCache.values())
+      if (entry.prefix === prefix && entry.hours && entry.expires > guideNow() && entry.start <= time && time < entry.start + entry.hours * 3600) return entry.promise;
+  }
+  const guideInt = (value, fallback) => { const n = Number.parseInt(value, 10); return Number.isFinite(n) ? n : fallback; };
+  function guideWindow(query) {
+    const now = guideNow();
+    const hours = Math.min(6, Math.max(1, guideInt(query.hours, 3)));
+    const wanted = Math.min(now + 7 * 86400, Math.max(now - 2 * 3600, guideInt(query.start, now)));
+    return { hours, start: Math.floor(wanted / 1800) * 1800 };
+  }
+  const guideMeta = async (c, force = false) => {
+    // HD/source/hidden metadata is best-effort: the guide stays usable without it.
+    const rows = await channelsList(c, '/api/v1/channels', force).catch(() => []);
+    return new Map(rows.map(x => [String(x.number), x]));
+  };
+  function guideAiring(req, c, a, { image = false, long = false } = {}) {
+    const start = Number(a.Time), end = start + Number(a.Duration);
+    const tags = Array.isArray(a.Tags) ? a.Tags : [];
+    const text = long ? (a.FullSummary || a.Summary) : a.Summary;
+    const genres = (Array.isArray(a.Genres) ? a.Genres : []).slice(0, 3).map(cleanText).filter(Boolean);
+    return {
+      start, end, title: cleanText(a.Title), episodeTitle: cleanText(a.EpisodeTitle) || undefined,
+      summary: cleanText(text).slice(0, long ? 1500 : 400) || undefined,
+      image: image ? art(req, c, a.Image) : undefined,
+      season: episodeNumber(a.SeasonNumber, undefined), episode: episodeNumber(a.EpisodeNumber, undefined),
+      isNew: tags.includes('New'), isLive: tags.includes('Live'),
+      genres: genres.length ? genres : undefined, seriesId: a.SeriesID ? String(a.SeriesID).slice(0, 100) : undefined,
+    };
+  }
+  async function guideChannels(req, c, rows, { start, end, now, mode }) {
+    ensure(req, c, { type: 'live' });
+    const meta = await guideMeta(c);
+    const needLogos = rows.some(r => !r?.Channel?.Image);
+    const logos = needLogos ? new Map((await channelsList(c, '/devices/ANY/channels').catch(() => [])).map(x => [String(x.GuideNumber), x.Logo])) : new Map();
+    let budget = GUIDE_ART_BUDGET;
+    const seen = new Set();
+    const channels = rows.filter(r => r && r.Channel && channelsNumber.test(String(r.Channel.Number)) && !r.Channel.Hidden
+      && !meta.get(String(r.Channel.Number))?.hidden && !seen.has(String(r.Channel.Number)) && seen.add(String(r.Channel.Number)))
+      .sort((a, b) => String(a.Channel.Number).localeCompare(String(b.Channel.Number), undefined, { numeric: true }))
+      .flatMap(r => {
+        const number = String(r.Channel.Number), m = meta.get(number);
+        const item = { id: `live:${number}`, type: 'live', category: cleanText(m?.source_name) };
+        if (!permitted(req, c, item)) return [];
+        const airings = (Array.isArray(r.Airings) ? r.Airings : [])
+          .filter(a => a && Number.isFinite(Number(a.Time)) && Number(a.Duration) > 0 && Number(a.Time) + Number(a.Duration) > start && Number(a.Time) < end)
+          .sort((a, b) => Number(a.Time) - Number(b.Time));
+        const logo = budget > 0 ? (budget--, art(req, c, r.Channel.Image || logos.get(number))) : undefined;
+        return [{ r, number, m, airings, logo }];
+      }).map(({ r, number, m, airings, logo }) => {
+        const out = airings.map(a => {
+          const onNow = mode === 'now' || (Number(a.Time) <= now && now < Number(a.Time) + Number(a.Duration));
+          const image = onNow && budget > 0;
+          if (image) budget--;
+          return guideAiring(req, c, a, { image });
+        });
+        return { id: `live:${number}`, number, name: cleanText(r.Channel.Name), callSign: cleanText(r.Channel.CallSign) || undefined,
+          logo, hd: m?.hd ? true : undefined, source: cleanText(m?.source_name) || undefined, airings: out };
+      });
+    return channels;
+  }
+  app.get('/api/channels/:connectionId/guide', route(async (req, res) => {
+    const c = connection(req, req.params.connectionId, 'channels');
+    ensure(req, c, { type: 'live' });
+    const { start, hours } = guideWindow(req.query), end = start + hours * 3600;
+    const rows = await guideFetch(c, start, hours);
+    res.json({ start, end, channels: await guideChannels(req, c, rows, { start, end, now: guideNow(), mode: 'guide' }) });
+  }));
+  app.get('/api/channels/:connectionId/now', route(async (req, res) => {
+    const c = connection(req, req.params.connectionId, 'channels');
+    ensure(req, c, { type: 'live' });
+    const now = guideNow();
+    const rows = await guideFetch(c, 0, 0, '/devices/ANY/guide/now');
+    const channels = await guideChannels(req, c, rows, { start: -Infinity, end: Infinity, now, mode: 'now' });
+    const window = guidePeek(c, now);
+    if (window) {
+      // Only use a window that is already cached: "next" must not cost another upstream request.
+      const upstream = new Map((await window).filter(r => r?.Channel).map(r => [String(r.Channel.Number), r.Airings || []]));
+      for (const channel of channels) {
+        const current = channel.airings[0], after = (upstream.get(channel.number) || [])
+          .filter(a => Number(a.Time) >= (current ? current.end : now)).sort((a, b) => Number(a.Time) - Number(b.Time))[0];
+        if (after) channel.next = { start: Number(after.Time), end: Number(after.Time) + Number(after.Duration), title: cleanText(after.Title), episodeTitle: cleanText(after.EpisodeTitle) || undefined };
+      }
+    }
+    res.json({ start: now, end: now, channels });
+  }));
+  app.get('/api/channels/:connectionId/airing', route(async (req, res) => {
+    const c = connection(req, req.params.connectionId, 'channels');
+    ensure(req, c, { type: 'live' });
+    const number = String(req.query.channel || ''), timeText = String(req.query.time || '');
+    if (!channelsNumber.test(number)) throw providerError('Invalid Channels DVR channel.');
+    if (!/^\d{1,12}$/.test(timeText)) throw providerError('Invalid guide time.');
+    const time = Number(timeText);
+    const rows = await (guidePeek(c, time) || guideFetch(c, Math.floor(time / 1800) * 1800, 1));
+    const row = rows.find(r => String(r?.Channel?.Number) === number);
+    const airing = (row?.Airings || []).find(a => Number(a.Time) <= time && time < Number(a.Time) + Number(a.Duration));
+    const meta = (await guideMeta(c)).get(number);
+    if (!row || !airing || row.Channel.Hidden || meta?.hidden) throw providerError('Channels DVR airing not found.', 404);
+    if (!permitted(req, c, { id: `live:${number}`, type: 'live', category: cleanText(meta?.source_name) })) throw providerError('Channels DVR airing not found.', 404);
+    res.json({ channel: { id: `live:${number}`, number, name: cleanText(row.Channel.Name) }, airing: guideAiring(req, c, airing, { image: true, long: true }) });
+  }));
   async function readPlaylist(c) {
     return parseM3U(
       c.config.content || (await fetchData(c.config.url, {
@@ -671,12 +805,18 @@ export function registerProviderRoutes(app, ctx, dependencies = {}) {
             "This does not appear to be an Xtream Codes endpoint.",
           );
       } else if (c.type === "channels") {
+        const refused = () => providerError("Channels DVR refused this address. Use the server's local network address, for example http://192.168.1.20:8089.", 400);
+        let status;
         try {
-          const status = await channelsRequest(c, '/status');
-          if (!status || typeof status !== 'object' || Array.isArray(status)) throw new Error();
-        } catch {
+          status = await channelsRequest(c, '/status');
+        } catch (error) {
+          // 401/403 (remote-access proxies) and HTML pages mean the address is not the DVR's own API.
+          if (error?.status === 400 || /invalid response/i.test(String(error?.message))) throw refused();
           throw providerError('Channels DVR could not be reached or returned an invalid status response.', 502);
         }
+        if (typeof status === 'string' && /^\s*</.test(status)) throw refused();
+        if (!status || typeof status !== 'object' || Array.isArray(status))
+          throw providerError('Channels DVR could not be reached or returned an invalid status response.', 502);
       } else if (c.type === "m3u") {
         if (!(await playlist(c)).length)
           throw providerError(

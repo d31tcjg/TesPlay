@@ -7,6 +7,7 @@ import { isIptv } from "./iptv-library";
 const LibraryBrowser = lazy(() => import("./LibraryBrowser"));
 const YouTube = lazy(() => import("./YouTube"));
 const RemoteEpisodes = lazy(() => import("./RemoteEpisodes"));
+const ChannelsOnNow = lazy(() => import("./ChannelsOnNow"));
 export default function RemoteLibrary({
   connections,
   library,
@@ -35,7 +36,8 @@ export default function RemoteLibrary({
     [channel, setChannel] = useState<
       { id: string; title: string } | undefined
     >(),
-    [search, setSearch] = useState("");
+    [search, setSearch] = useState(""),
+    [channelsTab, setChannelsTab] = useState<"onnow" | "recordings">("onnow");
   const [query, setQuery] = useState("");
   const firstIptv = connections.find(isIptv);
   const sources = connections.filter(
@@ -164,6 +166,17 @@ export default function RemoteLibrary({
             />
           </section>
         ) : source ? (
+          <>
+          {source.type === "channels" && !parent && (
+            <div className="cg-chips remote-channels-tabs" role="group" aria-label="Channels DVR">
+              {([["onnow", "On now"], ["recordings", "Recordings"]] as const).map(([id, label]) => (
+                <button key={id} type="button" className={`cg-chip ${channelsTab === id ? "selected" : ""}`} aria-pressed={channelsTab === id} onClick={() => setChannelsTab(id)}>{label}</button>
+              ))}
+            </div>
+          )}
+          {source.type === "channels" && !parent && channelsTab === "onnow" ? (
+            <ChannelsOnNow key={source.id} connection={source} library={library} onOpen={open} onFavorite={onFavorite} embedded />
+          ) : (
           <LibraryBrowser
             key={`${source.id}:${parent?.id || ""}`}
             mode="catalog"
@@ -183,6 +196,8 @@ export default function RemoteLibrary({
             }
             onGuide={() => {}}
           />
+          )}
+          </>
         ) : (
           <Empty title="Select a source">
             Choose a library above. Titles play on the paired screen.
