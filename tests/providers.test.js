@@ -1435,6 +1435,24 @@ test('Plex playback options read metadata without starting playback, and chosen 
   assert.equal((await f.request(`/api/playback?connectionId=${id}&itemId=42&kind=movie&qualityId=bad`)).status,400);
 });
 
+test('Plex Auto transcodes only sources taller than 1080 lines and caps them at 1920x1080',async t=>{
+  if(!lan)return t.skip('No private LAN address');
+  let transcode;const upstream=await listen((req,res)=>{transcode=new URL(req.url,'http://fixture');res.setHeader('Content-Type','application/vnd.apple.mpegurl');res.end('#EXTM3U\n#EXT-X-TARGETDURATION:2\n#EXT-X-ENDLIST\n');},'0.0.0.0');t.after(()=>upstream.close());
+  let media;
+  const f=await fixture(t,{remoteData:async()=>JSON.stringify({MediaContainer:{Metadata:[{ratingKey:'42',type:'movie',Media:[media]}]}})});
+  const id=f.add('plex',{url:upstream.url,token:'secret'});
+  const run=async(m,quality='')=>{media={container:'mp4',videoCodec:'h264',audioCodec:'aac',Part:[{id:'50',key:'/library/parts/50/file.mp4',Stream:[]}],...m};transcode=undefined;
+    const pb=await(await f.request(`/api/playback?connectionId=${id}&itemId=42&kind=movie${quality}`)).json();
+    if(pb.type==='hls')await f.request(pb.url);return {pb,transcode};};
+  let r=await run({height:2160});assert.equal(r.pb.type,'hls');assert.equal(r.transcode.searchParams.get('videoResolution'),'1920x1080');assert.equal(r.transcode.searchParams.get('directStream'),'0');assert.equal(r.transcode.searchParams.get('videoCodec'),'h264');assert.equal(r.transcode.searchParams.get('maxVideoBitrate'),'8000');
+  r=await run({height:1080});assert.equal(r.pb.type,'video');assert.equal(r.transcode,undefined);
+  r=await run({videoResolution:'4k'});assert.equal(r.pb.type,'hls');assert.equal(r.transcode.searchParams.get('videoResolution'),'1920x1080');
+  r=await run({});assert.equal(r.pb.type,'video');assert.equal(r.transcode,undefined);
+  r=await run({videoResolution:'1080'});assert.equal(r.pb.type,'video');
+  r=await run({height:2160},'&qualityId=720p');assert.equal(r.transcode.searchParams.get('videoResolution'),'1280x720');
+  r=await run({height:720,videoCodec:'hevc'});assert.equal(r.pb.type,'hls');assert.equal(r.transcode.searchParams.get('videoResolution'),'1920x1080');
+});
+
 test('episode catalogue provides previous and next across seasons and can open a Plex series directly',async t=>{
   const episodes=[{ratingKey:'1',title:'Pilot',type:'episode',grandparentRatingKey:'9',parentIndex:1,index:1,Media:[{}]},{ratingKey:'2',title:'Return',type:'episode',grandparentRatingKey:'9',parentIndex:2,index:1,Media:[{}]}];
   const f=await fixture(t,{remoteData:async input=>{const u=new URL(input);return JSON.stringify({MediaContainer:{Metadata:u.pathname.endsWith('/allLeaves')?episodes:u.pathname==='/library/metadata/9'?[{ratingKey:'9',type:'show'}]:[episodes[1]],totalSize:u.pathname.endsWith('/allLeaves')?2:1}});}});
