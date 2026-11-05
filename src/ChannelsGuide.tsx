@@ -67,7 +67,7 @@ function Grid({ connection, library, onOpen, onFavorite }: { connection: Connect
   const [guide, setGuide] = useState<GuideResponse>(), [error, setError] = useState(''), [loadingMore, setLoadingMore] = useState(false);
   const [filter, setFilter] = useState<GuideFilter>(emptyFilter), [selected, setSelected] = useState<Selected>();
   const [scroll, setScroll] = useState({ top: 0, height: 600 });
-  const now = useNowSeconds(), scroller = useRef<HTMLDivElement>(null), frame = useRef(0), guideRef = useRef<GuideResponse | undefined>(undefined), busy = useRef(false);
+  const now = useNowSeconds(), scroller = useRef<HTMLDivElement>(null), frame = useRef(0), guideRef = useRef<GuideResponse | undefined>(undefined), busy = useRef(false), positioned = useRef(false);
   const nowRef = useRef(now); nowRef.current = now;
   guideRef.current = guide;
   const base = `/channels/${encodeURIComponent(connection.id)}`;
@@ -84,7 +84,6 @@ function Grid({ connection, library, onOpen, onFavorite }: { connection: Connect
   const jumpToNow = useCallback((behavior: ScrollBehavior = 'smooth') => {
     const el = scroller.current; if (el && guideRef.current) el.scrollTo({ left: scrollForNow(nowRef.current, guideRef.current.start), behavior });
   }, []);
-  useEffect(() => { if (guide && !loadingMore && scroller.current && scroller.current.scrollLeft === 0) jumpToNow('auto'); }, [!!guide]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadMore = useCallback(() => {
     const current = guideRef.current; if (!current || busy.current) return;
@@ -111,8 +110,14 @@ function Grid({ connection, library, onOpen, onFavorite }: { connection: Connect
   }, [!!guide, loadMore]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // A loaded window may still leave the viewport near its end (wide screens): keep extending.
+  // The first positioning at "now" needs enough loaded width to scroll, so it retries per window.
   useEffect(() => {
     const el = scroller.current;
+    if (el && guide && !positioned.current) {
+      const target = scrollForNow(nowRef.current, guide.start);
+      el.scrollLeft = target;
+      if (target === 0 || el.scrollLeft >= target - 1 || !nextWindow(guide.end, nowRef.current)) positioned.current = true;
+    }
     if (el && guide && needsNextWindow(el.scrollLeft, el.clientWidth - CHANNEL_COLUMN, guide.start, guide.end, nowRef.current)) loadMore();
   }, [guide?.end, loadMore]); // eslint-disable-line react-hooks/exhaustive-deps
 

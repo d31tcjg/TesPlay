@@ -99,3 +99,30 @@ Run `npm run dev` against it with a disposable `DATA_DIR`. Capture screenshots i
 ## Out of scope
 
 Scheduling or cancelling recordings, deleting recordings, a guide for M3U/Xtream sources, commercial skip, and Channels collections/virtual channels.
+
+## Implementation notes — 2026-11-05
+
+Implemented on `feature/channels-guide` (based on `homelab` @ adb493b). Nothing was pushed or deployed. Verification used only synthetic data (injected `remoteData`, a loopback fake HTTP server in tests, and `scripts/fake-channels-dvr.mjs` for visual checks).
+
+**Server (`server/providers.js`, plus the one allowlist regex in `server/index.js`)**
+- `GET /api/channels/:id/guide`, `/now` and `/airing` follow the spec: `ensure(live)` plus per-channel `permitted()`, start aligned down to the half hour, `hours` clamped to 1–6, start clamped to [now−2 h, now+7 d]. Output is projected field by field, so `Raw`, `FullSummary` (except in `/airing`, which needs it for the long summary), `SearchScore`, `ProgramID`, `Station`, the DVR base URL and paths never reach the client.
+- Upstream guide reads are cached for 60 s in a small bounded map inside the Channels section, keyed by the connection fingerprint, aligned start and hours. The raw response is cached, not the trimmed one: `art()` descriptors are bound to the requesting user, so each request re-projects. `/now` shares nothing with the 3 h window except that it peeks at an *already cached* window to fill `next`; it never triggers an upstream fetch for it. `/airing` reads from any cached window covering `time`, otherwise fetches a 1 h window.
+- Artwork budget: at most 400 `art()` descriptors per response. Channel logos are registered first, then airings that are on now. Later airings get artwork lazily from `/airing`. With about 313 channels the logos and current airings together would exceed 400, so on very large lineups the lowest-numbered channels get their on-now image first and the rest fall back to no image.
+- Logos come from `Channel.Image`; `/devices/ANY/channels` is read only as a fallback when some rows have no image. Hidden/HD/source come from `/api/v1/channels` and degrade gracefully if that read fails.
+- Connection test: 401/403 (mapped to 400 by `remoteData`), HTML pages, and non-JSON bodies now return the spec's "refused this address" 400. Genuine unreachable/5xx failures still return the old 502. `tests/channels.test.js` had two assertions that expected 502 for HTML; they now expect the friendly 400.
+- `parentId=channels:recent` (v1 catalog extension): newest unwatched, finished episodes and movies across all shows. It excludes `cancelled`, `corrupted`, `watched` and `processed === false`, and is filtered per item through `permitted()`, so a viewer with only a `movie` grant sees movies only. It returns up to 60 items; Home asks for 12.
+
+**Frontend**
+- `src/channels-guide.ts` holds all pure logic (time→pixel, now line, virtual row window, next-window trigger, merge, filters, narrow breakpoint). `src/ChannelsGuide.tsx` is the virtualized grid and details sheet; `src/ChannelsOnNow.tsx` is the On now list plus the shared filter bar; `src/channels-guide.css` is imported by those components (not from `styles.css`).
+- Grid: 72 px rows, 6 px/min, row virtualization with 6 overscan rows, a single 30 s clock for the now line (no per-cell timers), flat fills only, 44 px+ touch targets. The channel column is 168 px (spec: about 150) so the name, logo and a 44 px favorite button fit. The initial scroll to "now" retries as windows load, because on a wide screen the first 3 h window is narrower than the viewport and cannot scroll yet. Further 3 h windows load when the visible right edge is within 1 h of the loaded end, up to 24 h ahead.
+- Live TV (`LibraryBrowser` mode `live`): the guide is shown above any other live shelves for every Channels connection with a `live` grant. A connection switcher appears with several connections. Below 700 px width the On now list replaces the grid. The Channels connection no longer produces a Live TV shelf (it was an opaque folder).
+- Recordings: `unifiedShelves` adds "<name> · Recorded shows" (`channels:shows`) and "<name> · Recorded movies" (`channels:movies`), with those folders as the "View all" parent. Opening a show from "View all" uses the existing `SourceBrowser` series view. Home gets "<name> · Recently recorded" from `channels:recent`; "View all" opens the connection's folders because a mixed episode/movie list has no single episode view.
+- Phone remote (`RemoteLibrary`): a Channels source shows **On now / Recordings** chips; On now taps send the channel through the existing `onOpen` → remote `load` path.
+
+**Favorites mechanism chosen**: the live `MediaItem` itself, via the existing `onFavorite` and `library.favorites` (the profile's "My list"). `POST /api/library/stars` only accepts `kind:'channel'` for YouTube channels and `server/library-routes.js` is outside this card's allowlist, so stars were not extended. Starred channels therefore also appear in My list. The Favorites chip filters by `connectionId` + `live:<number>` ids; a star toggle is available on each grid row, each On now row and the details sheet.
+
+**Deviations and caveats**
+- `logo`/`image` `art()` budget and the `/now` `next` behavior are described above; `next` is omitted until a 3 h guide window has been requested within the last 60 s.
+- The visual check used a fake DVR bound to this Mac's private LAN address (`FAKE_CHANNELS_HOST=<ip>`), not 127.0.0.1, because TesPlay's SSRF guard rejects loopback destinations for provider URLs. Traffic stayed on the machine. The fake serves generated PNG placeholders because the artwork proxy refuses SVG.
+- No Tesla/Intel Atom hardware test and no real DVR test was done. Playback taps were not exercised (no media in the fake); they call the same `onOpen` live item as v1.
+- Screenshots (1920×1200, 1280×720, 390×844) are in `docs/screenshots/channels-guide/`. The phone set shows the On now list instead of the grid and has no details sheet, as designed.
