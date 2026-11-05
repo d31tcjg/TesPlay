@@ -56,6 +56,17 @@ const pageData = (query) => ({
     .slice(0, 200),
   category: String(query.category || ""),
 });
+// Plex Auto caps at 1080p by transcoding taller sources. Drive/local files are
+// out of scope: there is no transcoder for them.
+export function plexExceeds1080(format) {
+  const h = Number(format?.height);
+  if (Number.isFinite(h) && h > 0) return h > 1080;
+  const r = String(format?.videoResolution ?? "").toLowerCase();
+  if (r === "4k") return true;
+  const n = Number(r.replace(/p$/, ""));
+  return Number.isFinite(n) && n > 1080;
+}
+
 export function paginate(items, query = {}) {
   const { page, limit, q, category } = pageData(query);
   const filtered = items.filter(
@@ -1501,7 +1512,8 @@ export function registerProviderRoutes(app, ctx, dependencies = {}) {
         const transcode =
           req.query.transcode === "1" ||
           c.config.transcode === true ||
-          !!audioTrackId || !!quality || !compatible;
+          !!audioTrackId || !!quality || !compatible ||
+          (qualityId === 'auto' && plexExceeds1080(format));
         let url, type, plexSessionId;
         if (transcode) {
           plexSessionId = randomBytes(12).toString('hex');
@@ -1517,7 +1529,7 @@ export function registerProviderRoutes(app, ctx, dependencies = {}) {
             directPlay: "0",
             // Auto can remux an already compatible H.264 video. Explicit
             // compatibility reencodes both tracks rather than copying codecs.
-            directStream: quality || req.query.transcode === "1" || c.config.transcode === true || format.videoCodec !== "h264" ? "0" : "1",
+            directStream: quality || req.query.transcode === "1" || c.config.transcode === true || format.videoCodec !== "h264" || plexExceeds1080(format) ? "0" : "1",
             videoCodec: "h264",
             audioCodec: "aac",
             maxVideoBitrate: String(
