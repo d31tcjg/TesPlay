@@ -2349,6 +2349,14 @@ form {
 .library-main .media-rail .format-thumbnail { flex-basis:280px; }
 .library-main .section-heading h2 { font-size:19px; }
 .library-page .form-error { margin-bottom:22px; }
+/* A guide is the primary content, not a shelf below a collection hero. */
+@media (min-width:700px) {
+  .library-guide-page { padding-top:16px; }
+  .library-guide-page .library-heading { margin:0 0 12px; min-height:44px; }
+  .library-guide-page .library-heading h1 { font-size:26px; margin:0; }
+  .library-guide-page .library-heading .eyebrow,
+  .library-guide-page .library-heading p { display:none; }
+}
 .shared-connections { display:flex; flex-wrap:wrap; gap:12px; }
 .youtube-channel-entry { display:flex; border:1px solid #ffffff12; border-radius:10px; align-items:center; background:#ffffff03; min-width:0; }
 .youtube-channel-entry .youtube-channel { border:0; background:none; min-width:0; flex:1; }

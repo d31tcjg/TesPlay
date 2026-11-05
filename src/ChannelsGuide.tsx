@@ -99,7 +99,9 @@ function Grid({ connection, library, onOpen, onFavorite }: { connection: Connect
     const el = scroller.current; if (!el) return;
     const update = () => {
       frame.current = 0;
-      setGridHeight(gridViewportHeight(window.innerHeight, el.getBoundingClientRect().top));
+      // Size from document flow, not the scrolling viewport: scrolling the page must
+      // not grow the grid and push the page bottom farther away on every frame.
+      setGridHeight(gridViewportHeight(window.innerHeight, el.getBoundingClientRect().top + window.scrollY));
       setScroll(s => (Math.abs(s.top - el.scrollTop) < 1 && s.left === el.scrollLeft && s.height === el.clientHeight ? s : { top: el.scrollTop, left: el.scrollLeft, height: el.clientHeight }));
       const current = guideRef.current;
       if (current && needsNextWindow(el.scrollLeft, el.clientWidth - CHANNEL_COLUMN, current.start, current.end, nowRef.current)) loadMore();
@@ -107,8 +109,9 @@ function Grid({ connection, library, onOpen, onFavorite }: { connection: Connect
     const onScroll = () => { if (!frame.current) frame.current = window.requestAnimationFrame(update); };
     update();
     const observer = new ResizeObserver(onScroll); observer.observe(el);
-    el.addEventListener('scroll', onScroll, { passive: true }); window.addEventListener('resize', onScroll); window.addEventListener('scroll', onScroll, { passive: true });
-    return () => { observer.disconnect(); el.removeEventListener('scroll', onScroll); window.removeEventListener('resize', onScroll); window.removeEventListener('scroll', onScroll); if (frame.current) window.cancelAnimationFrame(frame.current); };
+    if (el.parentElement) observer.observe(el.parentElement);
+    el.addEventListener('scroll', onScroll, { passive: true }); window.addEventListener('resize', onScroll);
+    return () => { observer.disconnect(); el.removeEventListener('scroll', onScroll); window.removeEventListener('resize', onScroll); if (frame.current) window.cancelAnimationFrame(frame.current); };
   }, [!!guide, loadMore]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // A loaded window may still leave the viewport near its end (wide screens): keep extending.
@@ -147,7 +150,7 @@ function Grid({ connection, library, onOpen, onFavorite }: { connection: Connect
               {ticks.map(t => <span key={t} className={t % 3600 === 0 ? 'hour' : ''} style={{ left: timeToX(t, guide.start) }}>{new Date(t * 1000).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}</span>)}
             </div>
           </div>
-          <div className="cg-body" style={{ transform: `translateY(${win.offset}px)` }}>
+          <div className="cg-body" style={{ top: 44 + win.offset }}>
             {rows.slice(win.start, win.end).map((channel, index) => {
               const starred = channelFavorite(library.favorites, connection.id, channel.id);
               return <div key={channel.id} className="cg-row" role="row" aria-rowindex={win.start + index + 1} style={{ height: ROW_HEIGHT, width: CHANNEL_COLUMN + width }}>
