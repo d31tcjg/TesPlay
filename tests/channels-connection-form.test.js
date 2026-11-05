@@ -31,6 +31,21 @@ function render(overrides = {}) {
   }));
 }
 
+test('Channels quality select defaults to original, restores saved values, and is Channels-only', () => {
+  const html = render();
+  assert.match(html, /Max streaming quality/);
+  assert.match(html, /<select name="maxQuality" aria-describedby="channels-quality-help">/);
+  assert.match(html, /<option value="original" selected="">Original<\/option>/);
+  for (const [value,label] of [['8000-1080','8 Mbps · 1080p'],['4000-720','4 Mbps · 720p'],['2000-720','2 Mbps · 720p'],['1000-576','1 Mbps · 576p']]) {
+    assert.ok(html.includes(`<option value="${value}">${label}</option>`));
+    assert.ok(render({editing:{id:'dvr',type:'channels',name:'DVR'},editConfig:{maxQuality:value},configuredFields:['url','maxQuality']}).includes(`<option value="${value}" selected="">`));
+  }
+  assert.match(html, /Lower quality uses less data\. Applies to TesPlay only; your other Channels apps are unaffected\./);
+  for (const adding of ['plex','m3u','xtream','drive','youtube','local']) {
+    assert.doesNotMatch(render({adding,editing:{id:'other',type:adding,name:'Other'}}), /name="maxQuality"|channels-quality-help/);
+  }
+});
+
 test('Channels creation explains DVR API access before save with one associated URL hint', () => {
   const html = render();
   assert.match(html, /<input(?=[^>]*name="url")(?=[^>]*aria-describedby="channels-url-help")[^>]*>/);

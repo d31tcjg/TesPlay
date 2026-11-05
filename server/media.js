@@ -295,6 +295,37 @@ export function rewriteHls(text, base, register) {
     .join("\n");
 }
 
+// Use the first Channels-authored variant, not a fabricated live/VOD query.
+// Filter raw query components so unrelated encoding, order and duplicates survive.
+function capChannelsMaster(text, {cap, width, height}) {
+  const lines = text.split(/\r?\n/), output = [];
+  let selected = false;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (line.startsWith('#EXT-X-I-FRAME-STREAM-INF:')) continue;
+    if (!line.startsWith('#EXT-X-STREAM-INF:')) { output.push(line); continue; }
+    const uri = lines[++i]?.trim();
+    if (!uri || uri.startsWith('#')) throw providerError('Channels DVR returned an invalid variant.', 502);
+    if (selected) continue;
+    selected = true;
+    const variant = new URL(uri, 'https://playlist.invalid/');
+    const controlled = new Set(['resolution', 'bitrate', 'abitrate', 'achannels']);
+    const query = variant.search.slice(1).split('&').filter(part =>
+      !controlled.has(new URLSearchParams(part).keys().next().value));
+    query.push(`resolution=${height}`, `bitrate=${Math.max(300, Math.floor(cap * 0.85) - 2 * 128)}`, 'abitrate=128');
+    // Keep relative paths relative; the normal HLS rewriter resolves them later.
+    const rewrittenUri = uri.split(/[?#]/)[0] + '?' + query.filter(Boolean).join('&');
+    let info = line.replace(/([:,])BANDWIDTH=[^,]*/, `$1BANDWIDTH=${cap * 1000}`)
+      .replace(/([:,])RESOLUTION=[^,]*/, `$1RESOLUTION=${width}x${height}`)
+      .replace(/,AVERAGE-BANDWIDTH=[^,]*/g, '');
+    if (!/[:,]BANDWIDTH=/.test(info)) info += `,BANDWIDTH=${cap * 1000}`;
+    if (!/[:,]RESOLUTION=/.test(info)) info += `,RESOLUTION=${width}x${height}`;
+    output.push(info, rewrittenUri);
+  }
+  if (!selected) throw providerError('Channels DVR did not return a quality variant.', 502);
+  return output.join('\n');
+}
+
 export function subtitleToVtt(text) {
   if (text.trimStart().startsWith("WEBVTT")) return text;
   return (
@@ -634,8 +665,16 @@ export function createMediaService(ctx) {
         // A playlist may be fetched several times while probing and seeking.
         // Keep its child URLs stable so byte ranges and engine resource ownership
         // refer to the same media, without accumulating a new set on every read.
+        if (item.channelsQuality && connection?.type === 'channels' && channelsSession(item))
+          manifest = capChannelsMaster(manifest, item.channelsQuality);
         item.children ??= new Map();
         const rewritten = rewriteHls(manifest, upstream.finalUrl, (url, metadata) => {
+          if (item.channelsBoundary && connection?.type === 'channels') {
+            const childUrl = validateRemoteUrl(url);
+            if (childUrl.origin !== validateRemoteUrl(connection.config.url).origin ||
+                !childUrl.pathname.startsWith(item.channelsBoundary + '/'))
+              throw providerError('Channels DVR returned a media URL outside this session.', 502);
+          }
           const previous = item.children.get(url);
           if (previous && resources.has(previous.slice('/api/media/'.length))) return previous;
           const child = register(req, connection, {
@@ -644,6 +683,7 @@ export function createMediaService(ctx) {
             remoteHostSessionId: item.remoteHostSessionId,
             remoteMediaId: item.remoteMediaId,
             hlsChild: true,
+            ...(item.channelsBoundary ? {channelsBoundary:item.channelsBoundary} : {}),
             parentToken: req.params.token,
             hlsSequence: manifest.includes('#EXT-X-BYTERANGE:') ? undefined : metadata?.sequence,
             allowedPrivateHosts: item.allowedPrivateHosts,

@@ -1343,10 +1343,22 @@ export function registerProviderRoutes(app, ctx, dependencies = {}) {
           resumeSeconds = Math.max(0, Number(file.playback_time) || 0);
           sessionPath = `/dvr/files/${recording[2]}/hls`;
         } else throw providerError('Invalid Channels DVR playback identifier.');
+        const quality = {
+          '8000-1080': {cap:8000, width:1920, height:1080},
+          '4000-720': {cap:4000, width:1280, height:720},
+          '2000-720': {cap:2000, width:1280, height:720},
+          '1000-576': {cap:1000, width:1024, height:576},
+        }[c.config.maxQuality];
+        const masterUrl = new URL(`${sessionPath}/master.m3u8`, validateRemoteUrl(c.config.url));
+        if (quality) {
+          masterUrl.searchParams.set('bitrate', quality.cap);
+          masterUrl.searchParams.set('abr', 'false');
+        }
         return res.json({
           url:media.register(req, c, {
-            kind:'hls', url:new URL(`${sessionPath}/master.m3u8`, validateRemoteUrl(c.config.url)).toString(),
+            kind:'hls', url:masterUrl.toString(),
             channelsSessionPath:sessionPath, allowedPrivateHosts:privateHosts(c.config.url),
+            ...(quality ? {channelsQuality:quality, channelsBoundary:sessionPath} : {}),
           }),
           type:'hls', provider:'channels', isLive:!!live, streamKind:'direct-file',
           ...(recording ? {resumeSeconds} : {}),

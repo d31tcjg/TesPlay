@@ -270,6 +270,19 @@ export default function ConnectionEditor({ adding, editing, editConfig, configur
                 )}
               </label>
             ))}
+            {adding === 'channels' && (
+              <label>
+                Max streaming quality
+                <select name="maxQuality" defaultValue={editConfig.maxQuality || 'original'} aria-describedby="channels-quality-help">
+                  <option value="original">Original</option>
+                  <option value="8000-1080">8 Mbps · 1080p</option>
+                  <option value="4000-720">4 Mbps · 720p</option>
+                  <option value="2000-720">2 Mbps · 720p</option>
+                  <option value="1000-576">1 Mbps · 576p</option>
+                </select>
+                <small id="channels-quality-help" className="form-help">Lower quality uses less data. Applies to TesPlay only; your other Channels apps are unaffected.</small>
+              </label>
+            )}
             {adding === "m3u" && (
               <label>Or paste your M3U playlist
                 <textarea aria-label="M3U playlist text" rows={6} value={playlist} maxLength={20*1024*1024} placeholder={'#EXTM3U\n#EXTINF:-1,Channel name\nhttps://…'} onChange={e=>{setPlaylist(e.target.value);if(newIptv)invalidateCategories();}}/>

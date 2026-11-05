@@ -261,6 +261,122 @@ test('Channels heartbeat PUT and best-effort release DELETE use validated sessio
   assert.deepEqual(received.at(-1),{method:'PUT',path:'/dvr/files/12/hls'});
 });
 
+test('Channels capped playback rewrites one variant for every cap and live/recording path', async t => {
+  const received = [];
+  const preserved = 'deinterlacer=linear&encoder=software&vcodec=h264&opaque=a%20b%2fc&flag&repeat=1&repeat=2';
+  await upstreamFixture(t, (req,res) => {
+    received.push({method:req.method,url:req.url});
+    if (req.method !== 'GET') { res.writeHead(204); return res.end(); }
+    res.setHeader('Content-Type','application/vnd.apple.mpegurl');
+    if (req.url.includes('/master.m3u8')) {
+      const specific = req.url.startsWith('/dvr/') ? '&indexed=true&ssize=1' : '&liveParam=a%2Bb';
+      res.end(`#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-STREAM-INF:BANDWIDTH=2000000,RESOLUTION=1024x576,CODECS="avc1.64001f,mp4a.40.2"\nstream.m3u8?abitrate=256&achannels=6&acodec=aac&bitrate=1744&resolution=576&${preserved}${specific}\n#EXT-X-STREAM-INF:BANDWIDTH=375000,RESOLUTION=682x384\nlow.m3u8\n`);
+    } else if (req.url.includes('/stream.m3u8')) res.end('#EXTM3U\n#EXTINF:4,\nsegment.ts\n');
+    else { res.setHeader('Content-Type','video/mp2t'); res.end('synthetic segment'); }
+  });
+  const f = await fixture(t,{media:true,data:{'/api/v1/episodes':episodes,'/api/v1/movies':[{id:'99'}]}});
+  for (const [quality,cap,height,width,video] of [['8000-1080',8000,1080,1920,6544],['4000-720',4000,720,1280,3144],['2000-720',2000,720,1280,1444],['1000-576',1000,576,1024,594]]) {
+    for (const [itemId,path] of [['live:9.1','/devices/ANY/channels/9.1/hls'],['file:12','/dvr/files/12/hls'],['movie:99','/dvr/files/99/hls']]) {
+      await t.test(`${quality} ${itemId}`, async () => {
+        f.c.config.maxQuality = quality;
+        const playback = await f.get('playback',{itemId});
+        const response = await f.request(playback.url);
+        assert.equal(response.status,200,await response.clone().text());
+        const manifest = await response.text();
+        assert.deepEqual(received.at(-1),{method:'GET',url:`${path}/master.m3u8?bitrate=${cap}&abr=false`});
+        assert.equal((manifest.match(/#EXT-X-STREAM-INF:/g)||[]).length,1);
+        assert.match(manifest,new RegExp(`#EXT-X-STREAM-INF:BANDWIDTH=${cap*1000},RESOLUTION=${width}x${height},CODECS=`));
+        assert.doesNotMatch(manifest,/192\.0\.2|stream\.m3u8|low\.m3u8/);
+        const child = manifest.split('\n').find(line=>line.startsWith('/api/media/'));
+        const variant = await f.request(child); assert.equal(variant.status,200);
+        const upstream = received.at(-1).url;
+        const query = new URL(upstream,'http://synthetic.invalid').searchParams;
+        assert.equal(upstream.split('?')[0],`${path}/stream.m3u8`);
+        assert.equal(query.get('bitrate'),String(video)); assert.equal(query.get('resolution'),String(height));
+        assert.equal(query.get('abitrate'),'128'); assert.equal(query.has('achannels'),false);
+        assert.ok(upstream.includes(preserved),'uncontrolled query bytes preserved');
+        assert.ok(upstream.includes(path.startsWith('/dvr/')?'&indexed=true&ssize=1':'&liveParam=a%2Bb'));
+        const segment = (await variant.text()).split('\n').find(line=>line.startsWith('/api/media/'));
+        assert.equal(await (await f.request(segment)).text(),'synthetic segment');
+        assert.equal((await f.request(playback.url+'/heartbeat',{method:'POST'})).status,200);
+        assert.deepEqual(received.at(-1),{method:'PUT',url:path});
+        assert.equal((await f.request(playback.url,{method:'DELETE'})).status,200);
+        for(let i=0;i<20 && received.at(-1).method!=='DELETE';i++) await new Promise(resolve=>setTimeout(resolve,5));
+        assert.deepEqual(received.at(-1),{method:'DELETE',url:path});
+      });
+    }
+  }
+});
+
+test('Channels cap rejects variant host/session tampering before registering or fetching children', async t => {
+  let uri, requests = 0;
+  await upstreamFixture(t,(req,res)=>{
+    requests++; res.setHeader('Content-Type','application/vnd.apple.mpegurl');
+    res.end(`#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=2000000\n${uri}\n`);
+  });
+  const f = await fixture(t,{media:true,data:{'/api/v1/episodes':episodes}});
+  f.c.config.maxQuality = '2000-720';
+  for (uri of ['http://192.0.2.20:8089/dvr/files/12/hls/stream.m3u8','http://192.0.2.10:9090/dvr/files/12/hls/stream.m3u8','/dvr/files/13/hls/stream.m3u8','/dvr/files/12/hls-extra/stream.m3u8','../../../status','http://127.0.0.1/stream.m3u8']) {
+    const playback = await f.get('playback',{itemId:'file:12'});
+    const before = requests;
+    const result = await f.request(playback.url);
+    assert.ok([400,502].includes(result.status),`${uri}: ${result.status}`);
+    assert.equal(requests,before+1,'only the safe master was fetched');
+  }
+});
+
+test('Channels cap keeps both audio tracks opaque, preserves encoded query bytes, and reuses its master snapshot', async t => {
+  const received = [];
+  await upstreamFixture(t,(req,res)=>{
+    received.push(req.url); res.setHeader('Content-Type','application/vnd.apple.mpegurl');
+    res.end('#EXTM3U\n#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="aac",NAME="Main",URI="audio.m3u8?track=0"\n#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="aac",NAME="Alt",URI="audio.m3u8?track=1"\n#EXT-X-STREAM-INF:BANDWIDTH=1000000,AVERAGE-BANDWIDTH=900000,RESOLUTION=1024x576,AUDIO="aac"\nstream.m3u8?opaque=a%20b%2fc&bitrate=808&bitrate=999&%61channels=6&abitrate=128&resolution=576&acodec=aac\n');
+  });
+  const f = await fixture(t,{media:true}); f.c.config.maxQuality='2000-720';
+  const playback = await f.get('playback',{itemId:'live:9.1'});
+  const text = await (await f.request(playback.url)).text();
+  assert.equal((text.match(/#EXT-X-MEDIA:/g)||[]).length,2);
+  assert.doesNotMatch(text,/AVERAGE-BANDWIDTH|audio\.m3u8|stream\.m3u8/);
+  assert.equal(await (await f.request(playback.url)).text(),text);
+  assert.equal(received.length,1,'probe and playback share the master snapshot');
+  const child = text.split('\n').find(line=>line.startsWith('/api/media/'));
+  assert.equal((await f.request(child)).status,200);
+  assert.equal(received.at(-1),'/devices/ANY/channels/9.1/hls/stream.m3u8?opaque=a%20b%2fc&acodec=aac&resolution=720&bitrate=1444&abitrate=128');
+});
+
+test('Channels cap rejects malformed masters and tampered nested playlist URIs', async t => {
+  let master = '';
+  await upstreamFixture(t,(req,res)=>{
+    res.setHeader('Content-Type','application/vnd.apple.mpegurl');
+    res.end(req.url.includes('/master.m3u8') ? master : '#EXTM3U\n#EXTINF:4,\n/dvr/files/13/hls/segment.ts\n');
+  });
+  const f = await fixture(t,{media:true}); f.c.config.maxQuality='2000-720';
+  for (master of ['#EXTM3U\n','#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=1000\n','#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=1000\n#EXT-X-ENDLIST\n']) {
+    const playback = await f.get('playback',{itemId:'live:9.1'});
+    assert.equal((await f.request(playback.url)).status,502);
+  }
+  master = '#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=1000\nstream.m3u8\n';
+  const playback = await f.get('playback',{itemId:'live:9.1'});
+  const text = await (await f.request(playback.url)).text();
+  const child = text.split('\n').find(line=>line.startsWith('/api/media/'));
+  assert.equal((await f.request(child)).status,502);
+});
+
+test('Channels original and missing quality retain the golden master request and served playlist', async t => {
+  const received = [];
+  await upstreamFixture(t,(req,res)=>{
+    received.push(req.url); res.setHeader('Content-Type','application/vnd.apple.mpegurl');
+    res.end('#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=10000000,RESOLUTION=1920x1080\nstream.m3u8?bitrate=9488&achannels=6\n#EXT-X-STREAM-INF:BANDWIDTH=3000000,RESOLUTION=1280x720\nlow.m3u8\n');
+  });
+  const f = await fixture(t,{media:true});
+  for(const maxQuality of [undefined,'original']) {
+    f.c.config.maxQuality = maxQuality;
+    const playback = await f.get('playback',{itemId:'live:9.1'});
+    const text = await (await f.request(playback.url)).text();
+    assert.equal(received.at(-1),'/devices/ANY/channels/9.1/hls/master.m3u8');
+    assert.equal(text.replace(/\/api\/media\/m_[A-Za-z0-9_-]+/g,'TOKEN'),'#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=10000000,RESOLUTION=1920x1080\nTOKEN\n#EXT-X-STREAM-INF:BANDWIDTH=3000000,RESOLUTION=1280x720\nTOKEN\n');
+  }
+});
+
 test('Channels cached lists expire within a minute and manual refresh replaces the cached snapshot',async t=>{
   t.mock.timers.enable({apis:['Date'],now:1800000000000});
   let revision=1;

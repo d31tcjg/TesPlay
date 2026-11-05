@@ -18,6 +18,7 @@ const editablePublicConfigFields = new Set([
   "output",
   "transcode",
   "maxBitrate",
+  "maxQuality",
   "authMode",
 ]);
 
@@ -40,6 +41,9 @@ export function validateConnection(value, existing) {
   )
     throw httpError(400, "Connection settings must be a JSON object.");
   const merged = { ...(existing?.config ?? {}), ...(config ?? {}) };
+  if (type === 'channels' && merged.maxQuality !== undefined &&
+      !['original', '8000-1080', '4000-720', '2000-720', '1000-576'].includes(merged.maxQuality))
+    throw httpError(400, 'Choose a supported Channels max streaming quality.');
   validateLoadedCategories(type, merged.loadedCategories);
   const { content, ...otherSettings } = merged;
   if (type === "m3u" && content !== undefined) {
