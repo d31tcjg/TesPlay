@@ -32,11 +32,26 @@ test('time maps to pixels at 6 px per minute and back', () => {
   assert.equal(g.cellLayout(a(O + 20000, 30), O, O + 10800).width, 0);
 });
 
+test('cell labels follow the visible time edge without escaping the cell', () => {
+  assert.equal(g.cellLabelOffset(100, 120, 180), 0, 'fully visible cell stays unchanged');
+  assert.equal(g.cellLabelOffset(156, 0, 358), 156, 'current cell title clears the sticky channel column');
+  assert.equal(g.cellLabelOffset(330, 0, 358), 0, 'less than MIN_CELL remains: leave the label alone');
+  assert.equal(g.cellLabelOffset(900, 0, 2000), 900, 'cell wider than the viewport follows its left edge');
+  assert.equal(g.cellLabelOffset(322, 0, 358), 322, 'exactly MIN_CELL remains inside the cell');
+});
+
 test('the now line sits at the elapsed minutes and "now" scrolls near the left edge', () => {
   assert.equal(g.nowLineX(O + 1800, O), 180);
   assert.equal(g.scrollForNow(O + 1800, O), 180 - 24); assert.equal(g.scrollForNow(O, O), 0, 'never negative');
   assert.equal(g.isCurrent(a(O, 30), O), true); assert.equal(g.isCurrent(a(O, 30), O + 1800), false, 'end is exclusive');
   assert.equal(g.airingProgress(a(O, 60), O + 900), 25); assert.equal(g.airingProgress(a(O, 60), O - 5), 0); assert.equal(g.airingProgress(a(O, 60), O + 99999), 100);
+});
+
+test('grid height clears the floating navigation in normal page flow', () => {
+  assert.equal(g.gridViewportHeight(720, 471), 139, 'rear screen: header, scrollbar and a full 72px row fit');
+  assert.equal(g.gridViewportHeight(1200, 493), 597, 'front screen stays above the dock');
+  assert.equal(g.gridViewportHeight(1600, 100), 820, 'keep the existing maximum');
+  assert.equal(g.gridViewportHeight(600, 550), 134, 'never smaller than a header, scrollbar and one row');
 });
 
 test('visible row window renders only the viewport plus overscan', () => {

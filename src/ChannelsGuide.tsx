@@ -6,12 +6,11 @@ import { Busy, Empty } from './components';
 import type { Connection, Library, MediaItem } from './types';
 import ChannelsOnNow, { ChannelFilterBar, ChannelLogo, emptyFilter, useNowSeconds } from './ChannelsOnNow';
 import {
-  CHANNEL_COLUMN, ROW_HEIGHT, WINDOW_HOURS, cellLayout, channelFavorite, channelSources, episodeLabel, filterChannels, formatRange,
-  gridWidth, isCurrent, isNarrowLayout, liveItem, mergeGuide, needsNextWindow, nextWindow, nowLineX, scrollForNow, timeTicks, timeToX, visibleRows,
+  CHANNEL_COLUMN, MIN_CELL, ROW_HEIGHT, WINDOW_HOURS, cellLabelOffset, cellLayout, channelFavorite, channelSources, episodeLabel, filterChannels, formatRange,
+  gridViewportHeight, gridWidth, isCurrent, isNarrowLayout, liveItem, mergeGuide, needsNextWindow, nextWindow, nowLineX, scrollForNow, timeTicks, timeToX, visibleRows,
 } from './channels-guide';
 import type { GuideAiring, GuideChannel, GuideFilter, GuideResponse } from './channels-guide';
 
-const MIN_CELL = 36;
 type Selected = { channel: GuideChannel; airing: GuideAiring };
 type Airing = { channel: { id: string; number: string; name: string }; airing: GuideAiring };
 
@@ -66,7 +65,8 @@ function Details({ connection, selected, favorite, onWatch, onFavorite, onClose 
 function Grid({ connection, library, onOpen, onFavorite }: { connection: Connection; library: Library; onOpen: (i: MediaItem) => void; onFavorite: (i: MediaItem) => void }) {
   const [guide, setGuide] = useState<GuideResponse>(), [error, setError] = useState(''), [loadingMore, setLoadingMore] = useState(false);
   const [filter, setFilter] = useState<GuideFilter>(emptyFilter), [selected, setSelected] = useState<Selected>();
-  const [scroll, setScroll] = useState({ top: 0, height: 600 });
+  const [scroll, setScroll] = useState({ top: 0, left: 0, height: 600 });
+  const [gridHeight, setGridHeight] = useState(134);
   const now = useNowSeconds(), scroller = useRef<HTMLDivElement>(null), frame = useRef(0), guideRef = useRef<GuideResponse | undefined>(undefined), busy = useRef(false), positioned = useRef(false);
   const nowRef = useRef(now); nowRef.current = now;
   guideRef.current = guide;
@@ -99,14 +99,16 @@ function Grid({ connection, library, onOpen, onFavorite }: { connection: Connect
     const el = scroller.current; if (!el) return;
     const update = () => {
       frame.current = 0;
-      setScroll(s => (Math.abs(s.top - el.scrollTop) < 1 && s.height === el.clientHeight ? s : { top: el.scrollTop, height: el.clientHeight }));
+      setGridHeight(gridViewportHeight(window.innerHeight, el.getBoundingClientRect().top));
+      setScroll(s => (Math.abs(s.top - el.scrollTop) < 1 && s.left === el.scrollLeft && s.height === el.clientHeight ? s : { top: el.scrollTop, left: el.scrollLeft, height: el.clientHeight }));
       const current = guideRef.current;
       if (current && needsNextWindow(el.scrollLeft, el.clientWidth - CHANNEL_COLUMN, current.start, current.end, nowRef.current)) loadMore();
     };
     const onScroll = () => { if (!frame.current) frame.current = window.requestAnimationFrame(update); };
     update();
-    el.addEventListener('scroll', onScroll, { passive: true }); window.addEventListener('resize', onScroll);
-    return () => { el.removeEventListener('scroll', onScroll); window.removeEventListener('resize', onScroll); if (frame.current) window.cancelAnimationFrame(frame.current); };
+    const observer = new ResizeObserver(onScroll); observer.observe(el);
+    el.addEventListener('scroll', onScroll, { passive: true }); window.addEventListener('resize', onScroll); window.addEventListener('scroll', onScroll, { passive: true });
+    return () => { observer.disconnect(); el.removeEventListener('scroll', onScroll); window.removeEventListener('resize', onScroll); window.removeEventListener('scroll', onScroll); if (frame.current) window.cancelAnimationFrame(frame.current); };
   }, [!!guide, loadMore]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // A loaded window may still leave the viewport near its end (wide screens): keep extending.
@@ -137,7 +139,7 @@ function Grid({ connection, library, onOpen, onFavorite }: { connection: Connect
     </ChannelFilterBar>
     {error && <div className="form-error" role="alert">{error}</div>}
     {!guide && !error ? <Busy label="Loading the TV guide…" /> : guide && !rows.length ? <Empty title="No channels match">Clear the filter or search to see all channels.</Empty> : guide &&
-      <div className="cg-scroller" ref={scroller} role="grid" aria-label={`${connection.name} TV guide`} aria-rowcount={rows.length}>
+      <div className="cg-scroller" ref={scroller} style={{ height: gridHeight }} role="grid" aria-label={`${connection.name} TV guide`} aria-rowcount={rows.length}>
         <div className="cg-canvas" style={{ width: CHANNEL_COLUMN + width, height: 44 + rows.length * ROW_HEIGHT }}>
           <div className="cg-header" role="row">
             <div className="cg-corner" style={{ width: CHANNEL_COLUMN }} />
@@ -159,8 +161,10 @@ function Grid({ connection, library, onOpen, onFavorite }: { connection: Connect
                   {channel.airings.map(airing => {
                     const { left, width: w } = cellLayout(airing, guide.start, guide.end);
                     if (w <= 0) return null;
+                    const cellWidth = Math.max(MIN_CELL, w - 2);
+                    const labelOffset = cellLabelOffset(scroll.left, left, cellWidth);
                     return <button key={airing.start} type="button" role="gridcell" className={`cg-cell ${isCurrent(airing, now) ? 'current' : ''}`}
-                      style={{ left, width: Math.max(MIN_CELL, w - 2) }} onClick={() => tap(channel, airing)}
+                      style={{ left, width: cellWidth, paddingLeft: 10 + labelOffset }} onClick={() => tap(channel, airing)}
                       aria-label={`${airing.title}, ${formatRange(airing)}${isCurrent(airing, now) ? ', on now' : ''}`}>
                       <span className="cg-cell-title">{airing.title}</span>
                       <span className="cg-cell-meta">{formatRange(airing)}{airing.isNew ? ' · New' : ''}{airing.isLive ? ' · Live' : ''}</span>

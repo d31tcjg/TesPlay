@@ -17,6 +17,10 @@ export const PX_PER_MINUTE = 6;
 export const ROW_HEIGHT = 72;
 export const OVERSCAN_ROWS = 6;
 export const CHANNEL_COLUMN = 168;
+export const MIN_CELL = 36;
+/** Reserve 70px dock + 24px bottom offset + 16px clearance; keep a full row below the header. */
+export const gridViewportHeight = (viewportHeight: number, gridTop: number): number =>
+  Math.max(44 + ROW_HEIGHT + 18, Math.min(820, viewportHeight - Math.max(0, gridTop) - 110));
 export const WINDOW_HOURS = 3;
 export const MAX_AHEAD_HOURS = 24;
 export const NARROW_BREAKPOINT = 700;
@@ -67,6 +71,13 @@ export const nextWindow = (loadedEnd: number, now: number, maxAheadHours = MAX_A
 
 /** Scroll position that puts "now" close to the left edge (just after the sticky channel column). */
 export const scrollForNow = (now: number, origin: number, lead = 24): number => Math.max(0, nowLineX(now, origin) - lead);
+
+/** Pin labels after the sticky channel column; don't chase cells with less than MIN_CELL left. */
+export function cellLabelOffset(scrollLeft: number, cellLeft: number, cellWidth: number): number {
+  const offset = Math.max(0, scrollLeft - cellLeft);
+  const limit = Math.max(0, cellWidth - MIN_CELL);
+  return offset > limit ? 0 : Math.min(offset, limit);
+}
 
 const same = (a: GuideAiring, b: GuideAiring) => a.start === b.start && a.end === b.end;
 /** Add a newly loaded window. Channels keep their order; duplicated airings at window seams are dropped. */
