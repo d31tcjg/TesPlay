@@ -1,5 +1,13 @@
 export const services = [
   {
+    id: "channels",
+    name: "Channels DVR",
+    subtitle: "Live TV & recordings",
+    color: "#5fba89",
+    letters: "DVR",
+    description: "Browse live TV, recorded shows and movies from your Channels DVR server.",
+  },
+  {
     id: "xtream",
     name: "IPTV",
     subtitle: "Live TV, films & series",

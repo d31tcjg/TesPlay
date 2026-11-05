@@ -106,3 +106,49 @@ fake HTTP server where `media.js` upstream calls (heartbeat/release) need a real
 ## Out of scope for v1
 
 Guide/EPG now-next, commercial-skip chapters, DVR scheduling/deleting, Channels virtual channels/collections, video groups.
+
+## Implementation notes — 2026-11-04
+
+- Implemented the native `channels` adapter, connection form/service picker entry, household kind grants,
+  hierarchical catalogs, episode navigation, proxied HLS playback, resume, progress/watch sync and session
+  heartbeat/release. The shared heartbeat helper keeps its existing export and TesPlayer call site;
+  Channels uses 5 s and Plex remains at 15 s, including while paused.
+- Picker configuration actually lives in `src/catalog.ts`; adding the service there also supplies the
+  editor title, Home service rail and existing provider-logo fallbacks. `src/Accounts.tsx` owns the
+  household content-kind picker. These two minimal registry additions were requested in card comment
+  1300 before edits; no vendor source, production configuration, other checkout or branch was changed.
+- Lists use the existing **in-memory `cached` helper with a 30 s TTL**, not `catalogCached`, because the
+  latter persists indefinitely until manual refresh. A bounded revision map makes a manual refresh
+  replace the snapshot used by subsequent readers. Raw recordings stay server-side; catalog items are
+  explicitly projected so neither filesystem `path` nor the configured DVR URL is serialized.
+- Show IDs remain opaque in public `show:<id>` identifiers and are encoded exactly once when building
+  the upstream path. Empty, overlong, control-character, slash/backslash and dot-segment show IDs are
+  rejected to preserve the path boundary. Numeric channel/file IDs use the spec's bounded formats.
+- Recording metadata comes from the observed `/api/v1/episodes` or `/api/v1/movies` list endpoints;
+  no undocumented per-recording detail endpoint is assumed. Progress also checks membership in the
+  matching recording list before issuing a PUT. Its watched threshold uses the validated playback
+  duration supplied to the existing progress hook, with the original position checked before flooring.
+- Access is inferred from the server-recognized identifier prefix, never from client-supplied `kind`.
+  Every playback ticket inherits the normal media access descriptor. Channels tickets additionally
+  fingerprint the configured DVR URL, so changing the connection cannot ping or delete a session on
+  a different DVR. Release is best-effort with a 3 s deadline and never delays the local response;
+  missing/changed connections skip upstream release rather than contacting a new destination.
+- Upstream keepalive uses PUT, the strict session-path grammar, a 10 s timeout and the existing
+  abort/controller lifecycle. Non-2xx and transport failures return the specified sanitized 502.
+  Local progress is saved before sync and retained on failure, with `channelsSyncError` returned.
+- Verification uses only injected synthetic data and loopback fake HTTP servers. Socket fixtures
+  route only the reserved `192.0.2.10` DVR host to the fake server after the real URL policy runs.
+  Tests cover all eight specified areas plus cache refresh/expiry, changed-DVR tickets and progress
+  membership. Setup used `npm ci --offline --no-audit --no-fund`; npm blocked esbuild/fsevents install
+  scripts, but the build succeeds without enabling them.
+- Scope: browse via **Connections → Browse** (including shared connections). Integrating Channels
+  into the unified Movies/TV/Live shelves or the Home preview loader is not part of this spec and
+  those helpers are unchanged. Guide, scheduling, deletion and commercial chapters remain out of scope.
+- No live server/codec, Tesla browser or hardware playback verification was attempted; no push,
+  merge, deployment, secrets or real upstream requests. Opus acceptance is card `t_fdc23e0a` and must
+  independently rerun `npm test && npm run build`. Any later live check/deployment needs Cesar's
+  approval. Local rollback is to revert the implementation commit on the feature branch; do not
+  reset or edit `homelab`, touch the main checkout, or remove any media/data volumes.
+- Canonical documentation handoff: Developer should append the accepted commit and final test evidence
+  to Obsidian `Homelab/Services/TesPlay.md` after acceptance. Vault writes are outside this card's
+  allowlist, so that note was read for context but deliberately left unchanged here.

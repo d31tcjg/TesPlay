@@ -151,6 +151,8 @@ export default function TesPlayer({ playback, item, resume, plexCompatibility, c
           if (event.type === 'audio-unlock-required') { setMessage('Press play to enable sound'); setBusy(false); }
         });
         await active.load({ session: adapter.session, resumePositionSeconds: options.current.resume || null, autoplay: autoStart, startAtLiveEdge: adapter.session.isLive, preferredQualityId: adapter.session.selectedQualityId ?? null, preferredAudioTrackId: adapter.session.selectedAudioTrackId ?? null, preferredSubtitleTrackId: playback.settings?.subtitleTrackId && playback.settings.subtitleTrackId !== 'default' ? playback.settings.subtitleTrackId==='off'?null:adapter.session.subtitles.find(t=>t.id===playback.settings?.subtitleTrackId)?.id||null : preferredSubtitleTrack(adapter.session.subtitles,preferences)?.id || null, signedAvOffsetMs: 0 }, controller.signal);
+        // The shared keepalive retains Plex transcodes and Channels DVR tuners,
+        // including while paused. Teardown aborts both providers' timers.
         startPlexPlaybackHeartbeat(playback, controller.signal, () => !!active && ['ready','playing','paused','seeking','stalled'].includes(active.getSnapshot().phase));
         if (!controller.signal.aborted) { setBusy(false); if(active.getSnapshot().phase!=='playing')setMessage(INITIAL_MESSAGE); }
       } catch (reason) { if (!controller.signal.aborted) error(reason); }

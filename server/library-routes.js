@@ -139,7 +139,13 @@ export function registerLibraryRoutes(
       plexSyncError =
         "Saved in TesPlay, but Plex could not update. Check your Plex connection.";
     }
-    res.json({ ok: true, ...(plexSyncError ? { plexSyncError } : {}) });
+    let channelsSyncError;
+    try {
+      await ctx.syncChannelsProgress?.(req, item, seconds, duration, req.body.state);
+    } catch {
+      channelsSyncError = 'Saved in TesPlay, but Channels DVR could not update. Check your Channels DVR connection.';
+    }
+    res.json({ ok: true, ...(plexSyncError ? { plexSyncError } : {}), ...(channelsSyncError ? { channelsSyncError } : {}) });
   });
   app.post("/api/library/stars", (req, res) => {
     verifyProfile(req);

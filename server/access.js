@@ -22,7 +22,7 @@ export function validateGrants(input, connections) {
     if (!c || ids.has(c.id)) throw httpError(400, 'Choose each available connection once.');
     ids.add(c.id);
     if (!Array.isArray(value.kinds) || !value.kinds.length || value.kinds.some(k => !contentKinds.includes(k))) throw httpError(400, 'Choose the content types this account can watch.');
-    const supportedKinds={youtube:['video'],m3u:['live'],xtream:['movie','series','live'],plex:['movie','series','audio'],stremio:['movie','series'],drive:['video','audio'],local:['video','audio']}[c.type]||[];
+    const supportedKinds={channels:['live','series','movie'],youtube:['video'],m3u:['live'],xtream:['movie','series','live'],plex:['movie','series','audio'],stremio:['movie','series'],drive:['video','audio'],local:['video','audio']}[c.type]||[];
     if(value.kinds.some(k=>!supportedKinds.includes(k))) throw httpError(400,'Choose content types supported by this connection.');
     const restriction = (field, supported) => {
       if (value[field] == null) return null;

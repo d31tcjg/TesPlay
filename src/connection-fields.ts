@@ -10,6 +10,13 @@ const fields: Record<
     optional?: boolean;
   }[]
 > = {
+  channels: [
+    {
+      key: 'url',
+      label: 'Channels DVR server URL',
+      placeholder: 'http://192.168.1.20:8089',
+    },
+  ],
   xtream: [
     {
       key: "url",

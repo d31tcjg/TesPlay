@@ -2,6 +2,7 @@ import { cleanText, httpError } from "./security.js";
 import { validateLoadedCategories } from './iptv-selection.js';
 
 const supportedConnections = [
+  "channels",
   "xtream",
   "m3u",
   "plex",

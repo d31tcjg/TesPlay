@@ -41,6 +41,23 @@ test('Plex playback pings while paused for a minute, serializes requests and sto
   assert.equal(callbacks.size, 0);
 });
 
+test('Channels heartbeat uses five-second intervals while paused and aborts cleanly',async()=>{
+  const callbacks=new Map(),calls=[];let active=true;
+  const exports={};
+  vm.runInNewContext(code,{exports,require:()=>({tesPlayFetch:async(url,options)=>{calls.push({url,options});}}),window:{
+    setInterval(callback,ms){assert.equal(ms,5000);callbacks.set(1,callback);return 1;},clearInterval(id){callbacks.delete(id);},
+  }});
+  const controller=new AbortController();
+  exports.startPlexPlaybackHeartbeat({provider:'channels',type:'hls',url:'/api/media/m_fixture'},controller.signal,()=>active);
+  await new Promise(resolve=>setImmediate(resolve));
+  for(let elapsed=5;elapsed<=60;elapsed+=5){callbacks.get(1)();await new Promise(resolve=>setImmediate(resolve));}
+  assert.equal(calls.length,13);assert.ok(calls.every(c=>c.url==='/api/media/m_fixture/heartbeat'&&c.options.method==='POST'));
+  active=false;callbacks.get(1)();assert.equal(calls.length,13);
+  controller.abort();assert.equal(callbacks.size,0);
+  exports.startPlexPlaybackHeartbeat({provider:'channels',type:'hls',url:'/api/media/m_fixture'},controller.signal,()=>true);
+  assert.equal(callbacks.size,0);
+});
+
 test('Plex keepalive uses the registered transcode session and enforces media authorization before contacting Plex', async () => {
   const received = [];
   const provider = http.createServer((req, res) => {received.push({url: req.url, token: req.headers['x-plex-token']}); res.writeHead(200); res.end();});

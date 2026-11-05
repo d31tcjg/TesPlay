@@ -6,7 +6,7 @@ import type { Connection, Grant } from './types';
 import PlaybackDefaultsFields from './PlaybackDefaultsFields';
 import { defaultPlayerPreferences } from './player-preferences';
 type Account={id:string;name:string;email:string|null;username:string;role:'owner'|'member';disabled:boolean;grants:Grant[]};
-const kinds:Record<string,string[]>={stremio:['movie','series'],plex:['movie','series','audio'],xtream:['movie','series','live'],m3u:['live'],youtube:['video'],drive:['video','audio'],local:['video','audio']};
+const kinds:Record<string,string[]>={channels:['live','series','movie'],stremio:['movie','series'],plex:['movie','series','audio'],xtream:['movie','series','live'],m3u:['live'],youtube:['video'],drive:['video','audio'],local:['video','audio']};
 const labels:Record<string,string>={movie:'Movies',series:'TV shows',live:'Live TV',video:'Videos',audio:'Music & audio'};
 export default function Accounts({connections,onToast}:{connections:Connection[];onToast:(s:string)=>void}) {
   const [accounts,setAccounts]=useState<Account[]>([]),[busy,setBusy]=useState(true),[error,setError]=useState('');

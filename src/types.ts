@@ -23,6 +23,7 @@ export type MediaItem = {
   sectionId?: string;
   artwork?: "poster" | "logo" | "thumbnail";
   watched?: boolean;
+  unwatchedCount?: number;
   resumeSeconds?: number;
   unavailable?: boolean;
   unavailableReason?: string;
@@ -76,7 +77,7 @@ export type StreamChoice = { id: string; label: string; description?: string; ad
 export type PlaybackOptions = { item?: MediaItem; audio: PlaybackChoice[]; subtitles: PlaybackChoice[]; qualities: PlaybackChoice[]; sources?: StreamChoice[]; note?: string };
 export type Playback = {
   defaults?: PlayerPreferences;
-  provider?: "plex" | "youtube" | "stremio";
+  provider?: "plex" | "youtube" | "stremio" | "channels";
   url: string;
   type: "hls" | "video" | "audio" | "external";
   streamKind?: "direct-file" | "continuous-ts" | "dual-input";

@@ -321,6 +321,8 @@ export const mediaTypes = {
 
 export function createMediaService(ctx) {
   const resources = new Map();
+  const channelsSession = item => item.kind === 'hls' &&
+    /^\/(devices\/ANY\/channels\/\d{1,5}(\.\d{1,3})?|dvr\/files\/\d{1,10})\/hls$/.test(item.channelsSessionPath || '');
   const socketOwners = new WeakMap();
   const watchedSockets = new WeakSet();
   const unavailableArtwork = (res) => res.status(200)
@@ -329,6 +331,7 @@ export function createMediaService(ctx) {
     .type("image/svg+xml")
     .send('<svg xmlns="http://www.w3.org/2000/svg" width="480" height="720" viewBox="0 0 480 720"><rect width="480" height="720" fill="#17202b"/><g transform="translate(192 312)" fill="none" stroke="#64758a" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="12" width="88" height="72" rx="10"/><path d="M36 12v72m24-72v72M4 36h32m24 0h32M4 60h32m24 0h32"/></g></svg>');
   function identity(connection, profileId) {
+    if (connection?.type === 'channels') return createHash('sha256').update(connection.config.url || '').digest('hex');
     if (connection?.type === 'stremio') return createHash('sha256').update(JSON.stringify([connection.config.authKey || '', (connection.config.addons || []).map(a => [a.key, a.url, a.enabled])])).digest('hex');
     if (connection?.type !== "plex") return null;
     return createHash("sha256")
@@ -400,7 +403,7 @@ export function createMediaService(ctx) {
     if(connection && item.access && ctx.assertAccess) ctx.assertAccess(req,connection,item.access);
     if (item.identity !== identity(connection, ctx.getProfileId(req)))
       throw providerError(
-        connection?.type === 'stremio' ? 'Your Stremio connection changed. Open the title again.' : "The selected Plex profile changed. Open the title again.",
+        connection?.type === 'channels' ? 'Your Channels DVR connection changed. Open the title again.' : connection?.type === 'stremio' ? 'Your Stremio connection changed. Open the title again.' : "The selected Plex profile changed. Open the title again.",
         404,
       );
     return {item, connection};
@@ -410,20 +413,25 @@ export function createMediaService(ctx) {
     res.once('close', () => {if (!res.writableFinished) controller.abort();});
     try {
       const {item, connection} = authorizedResource(req);
-      if (connection?.type !== 'plex' || item.kind !== 'hls' || !/^[a-f0-9]{24}$/.test(item.plexSessionId || ''))
+      const channels = connection?.type === 'channels' && channelsSession(item);
+      if (!channels && (connection?.type !== 'plex' || item.kind !== 'hls' || !/^[a-f0-9]{24}$/.test(item.plexSessionId || '')))
         throw providerError('This media does not have a Plex transcode session.', 400);
-      const url = new URL('/video/:/transcode/universal/ping', connection.config.url);
-      url.searchParams.set('session', item.plexSessionId);
+      const url = new URL(channels ? item.channelsSessionPath : '/video/:/transcode/universal/ping', validateRemoteUrl(connection.config.url));
+      if (!channels) url.searchParams.set('session', item.plexSessionId);
       item.controllers ??= new Set();
       item.controllers.add(controller);
       res.once('close', () => item.controllers.delete(controller));
-      const response = await requestRemote(url.toString(), {
-        headers: item.headers, allowedPrivateHosts: item.allowedPrivateHosts,
-        timeout: 10000, signal: controller.signal,
-      });
-      response.resume();
-      if (response.statusCode < 200 || response.statusCode >= 300)
-        throw providerError('Plex could not keep this stream active.', 502);
+      try {
+        const response = await requestRemote(url.toString(), {
+          headers: item.headers,
+          allowedPrivateHosts: channels ? [hostnameOf(validateRemoteUrl(connection.config.url))] : item.allowedPrivateHosts,
+          method: channels ? 'PUT' : 'GET', timeout: 10000, signal: controller.signal,
+        });
+        response.resume();
+        if (response.statusCode < 200 || response.statusCode >= 300) throw new Error();
+      } catch {
+        throw providerError(`${channels ? 'Channels DVR' : 'Plex'} could not keep this stream active.`, 502);
+      }
       item.expires = Date.now() + 12 * 3600000;
       res.setHeader('Cache-Control', 'private, no-store');
       res.json({ok: true});
@@ -707,6 +715,21 @@ export function createMediaService(ctx) {
         // being used by another viewer must remain connected.
         for (const socket of resource.sockets || [])
           if (idle.has(socket) && socketOwners.get(socket) === resource) socket.destroy();
+        if (channelsSession(resource)) {
+          // Never delay local teardown on a dropped DVR or a busy tuner.
+          void (async () => {
+            try {
+              const connection = ctx.getConnection(req, resource.connectionId);
+              if (connection.type !== 'channels' || resource.identity !== identity(connection, resource.profileId)) return;
+              const base = validateRemoteUrl(connection.config.url);
+              const response = await requestRemote(new URL(resource.channelsSessionPath, base), {
+                method:'DELETE', timeout:3000, allowedPrivateHosts:[hostnameOf(base)],
+                signal:AbortSignal.timeout(3000),
+              });
+              response.resume();
+            } catch { /* Best-effort tuner release, including deleted connections. */ }
+          })();
+        }
         resources.delete(id);
       }
       res.json({ released: true });

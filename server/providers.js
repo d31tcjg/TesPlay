@@ -232,6 +232,106 @@ export function registerProviderRoutes(app, ctx, dependencies = {}) {
       throw providerError("The IPTV provider rejected these credentials.");
     return result;
   }
+  async function channelsRequest(c, pathname, options = {}) {
+    const url = new URL(pathname, validateRemoteUrl(c.config.url));
+    return fetchData(url, { ...options, allowedPrivateHosts: privateHosts(c.config.url) });
+  }
+  const channelsNumber = /^\d{1,5}(\.\d{1,3})?$/;
+  const channelsFileId = /^\d{1,10}$/;
+  const channelsFolders = [
+    ['channels:live', 'Live TV', 'live'],
+    ['channels:shows', 'TV Shows', 'series'],
+    ['channels:movies', 'Movies', 'movie'],
+  ];
+  const channelsRevisions = new Map();
+  function channelsList(c, pathname, force = false) {
+    // Unlike manually refreshed IPTV catalogs, DVR recordings change frequently.
+    const key = `${cacheKey(c)}:channels:${pathname}`;
+    if (force) {
+      channelsRevisions.set(key, (channelsRevisions.get(key) || 0) + 1);
+      if (channelsRevisions.size > 300) channelsRevisions.delete(channelsRevisions.keys().next().value);
+    }
+    return cached(`${key}:${channelsRevisions.get(key) || 0}`,
+      async () => {
+        const data = await channelsRequest(c, pathname);
+        if (!Array.isArray(data)) throw providerError('Channels DVR returned an invalid catalog.', 502);
+        return data;
+      }, 30);
+  }
+  function channelsShowId(id) {
+    // Show IDs are opaque, but cannot be URL path separators or dot segments.
+    if (typeof id !== 'string' || !id.length || id.length > 200 || /[\x00-\x1f\x7f/\\]/.test(id) || ['.', '..'].includes(id))
+      throw providerError('Invalid Channels DVR show identifier.');
+    return encodeURIComponent(id);
+  }
+  const channelsTime = value => Number.isFinite(Number(value)) ? Number(value) : Date.parse(value) || 0;
+  function channelsRecording(req, c, x, movie = false, showId = x.show_id) {
+    return itemBase(c, {
+      id:`${movie ? 'movie' : 'file'}:${x.id}`, type:movie ? 'movie' : 'episode',
+      contentKind:movie ? 'movie' : 'series', title:cleanText(x.episode_title || x.title),
+      ...(!movie && showId != null ? {seriesId:`show:${showId}`} : {}),
+      seasonNumber:episodeNumber(x.season_number, undefined), episodeNumber:episodeNumber(x.episode_number, undefined),
+      description:cleanText(x.summary), year:String(x.release_year || ''),
+      duration:Math.max(0, Number(x.duration) || 0), resumeSeconds:Math.max(0, Number(x.playback_time) || 0),
+      watched:!!(x.watched || x.completed), poster:art(req, c, x.image_url), backdrop:art(req, c, x.thumbnail_url),
+      addedAt:mediaDate(x.created_at),
+    });
+  }
+  async function channelsEpisodes(req, c, showId, force = false) {
+    ensure(req, c, {type:'series'});
+    const raw = await channelsList(c, `/api/v1/shows/${channelsShowId(showId)}/episodes`, force);
+    return raw.filter(x => !x.cancelled && channelsFileId.test(String(x.id)))
+      .sort((a,b) => {
+        const numbered = [a,b].every(x => episodeNumber(x.season_number, undefined) !== undefined && episodeNumber(x.episode_number, undefined) !== undefined);
+        return (numbered ? Number(a.season_number)-Number(b.season_number) || Number(a.episode_number)-Number(b.episode_number) : channelsTime(b.created_at)-channelsTime(a.created_at)) || String(a.id).localeCompare(String(b.id), undefined, {numeric:true});
+      }).map(x => channelsRecording(req, c, x, false, showId)).filter(x => permitted(req, c, x));
+  }
+  async function channelsFile(c, id, movie = false) {
+    if (!channelsFileId.test(id)) throw providerError('Invalid Channels DVR recording identifier.');
+    const raw = await channelsList(c, movie ? '/api/v1/movies' : '/api/v1/episodes');
+    const file = raw.find(x => String(x.id) === id && !x.cancelled);
+    if (!file) throw providerError('Channels DVR recording not found.', 404);
+    return file;
+  }
+  async function channelsCatalog(req, c, parent, force) {
+    if (!parent) return channelsFolders.filter(([, , type]) => permitted(req, c, { type }))
+      .map(([id, title, contentKind]) => itemBase(c, { id, title, contentKind, type: 'folder' }));
+    if (parent === 'channels:live') {
+      ensure(req, c, {type:'live'});
+      const [channels, logos] = await Promise.all([
+        channelsList(c, '/api/v1/channels', force), channelsList(c, '/devices/ANY/channels', force),
+      ]);
+      const byNumber = new Map(logos.map(x => [String(x.GuideNumber), x]));
+      return channels.filter(x => !x.hidden && channelsNumber.test(String(x.number)))
+        .sort((a,b) => String(a.number).localeCompare(String(b.number), undefined, {numeric:true}))
+        .map(x => itemBase(c, {
+          id:`live:${x.number}`, title:cleanText(`${x.number} ${x.name}`), type:'live',
+          category:cleanText(x.source_name), subtitle:x.hd ? 'HD' : undefined,
+          poster:art(req, c, byNumber.get(String(x.number))?.Logo),
+        })).filter(x => permitted(req, c, x));
+    }
+    if (parent === 'channels:shows') {
+      ensure(req, c, {type:'series'});
+      return (await channelsList(c, '/api/v1/shows', force))
+        .sort((a,b) => channelsTime(b.last_recorded_at)-channelsTime(a.last_recorded_at))
+        .map(x => {
+          const id = String(x.id); channelsShowId(id);
+          return itemBase(c, {id:`show:${id}`, title:cleanText(x.name), type:'series',
+            description:cleanText(x.summary), poster:art(req,c,x.image_url), year:String(x.release_year || ''),
+            unwatchedCount:Math.max(0, Number(x.number_unwatched) || 0),
+            subtitle:`${Math.max(0, Number(x.number_unwatched) || 0)} unwatched`,
+          });
+        }).filter(x => permitted(req,c,x));
+    }
+    if (parent.startsWith('show:')) return channelsEpisodes(req, c, parent.slice(5), force);
+    if (parent === 'channels:movies') {
+      ensure(req, c, {type:'movie'});
+      return (await channelsList(c, '/api/v1/movies', force))
+        .filter(x => !x.cancelled && channelsFileId.test(String(x.id)))
+        .map(x => channelsRecording(req,c,x,true)).filter(x => permitted(req,c,x));
+    }
+    throw providerError('Invalid Channels DVR folder.');
+  }
   async function readPlaylist(c) {
     return parseM3U(
       c.config.content || (await fetchData(c.config.url, {
@@ -570,6 +670,13 @@ export function registerProviderRoutes(app, ctx, dependencies = {}) {
           throw providerError(
             "This does not appear to be an Xtream Codes endpoint.",
           );
+      } else if (c.type === "channels") {
+        try {
+          const status = await channelsRequest(c, '/status');
+          if (!status || typeof status !== 'object' || Array.isArray(status)) throw new Error();
+        } catch {
+          throw providerError('Channels DVR could not be reached or returned an invalid status response.', 502);
+        }
       } else if (c.type === "m3u") {
         if (!(await playlist(c)).length)
           throw providerError(
@@ -636,6 +743,11 @@ export function registerProviderRoutes(app, ctx, dependencies = {}) {
       const kind = String(req.query.kind || "all");
       const parent = String(req.query.parentId || "");
       const force = req.query.refresh === "1";
+      if (c.type === 'channels') {
+        const items = await channelsCatalog(req, c, parent, force);
+        return res.json({ ...paginate(items, req.query),
+          categories:[...new Set(items.map(x => x.category).filter(Boolean))].map(name => ({id:name,name})) });
+      }
       if (c.type === "xtream") {
         if (parent) {
           const items = await xtreamEpisodes(req, c, parent, force);
@@ -963,6 +1075,13 @@ export function registerProviderRoutes(app, ctx, dependencies = {}) {
   );
 
   async function seriesEpisodes(req, c, id, kind) {
+    if (c.type === 'channels') {
+      ensure(req, c, {type:'series'});
+      if (kind === 'series' && id.startsWith('show:')) return channelsEpisodes(req, c, id.slice(5));
+      if (!id.startsWith('file:')) throw providerError('Choose a Channels DVR episode.');
+      const file = await channelsFile(c, id.slice(5));
+      return channelsEpisodes(req, c, String(file.show_id));
+    }
     if (c.type === "xtream") {
       const seriesId = kind === 'series' ? numeric(id) : /^(\d+):\d+:[a-zA-Z0-9]{1,8}$/.exec(id)?.[1];
       if (!seriesId) throw providerError("Invalid series or episode.");
@@ -1018,6 +1137,20 @@ export function registerProviderRoutes(app, ctx, dependencies = {}) {
     res.json({item:plexItem(req,c,meta,plexToken(req,c)),audio:plexAudio(part),subtitles:plexSubtitles(part).map(x => ({id:`plex-subtitle-${numeric(x.id)}`,label:cleanText(x.displayTitle || x.language || 'Subtitles'),language:x.languageCode})),qualities:meta.type === 'track' ? [] : plexQualities});
   }));
 
+  ctx.syncChannelsProgress = async (req, item, seconds, duration, state) => {
+    if (!item.connectionId) return;
+    const c = connection(req, item.connectionId);
+    if (c.type !== 'channels' || item.id.startsWith('live:')) return;
+    const match = /^(file|movie):(\d{1,10})$/.exec(item.id);
+    if (!match) throw providerError('Invalid Channels DVR recording identifier.');
+    ensure(req, c, {type:match[1] === 'movie' ? 'movie' : 'series'});
+    await channelsFile(c, match[2], match[1] === 'movie');
+    const base = `/dvr/files/${match[2]}`;
+    await channelsRequest(c, `${base}/playback_time/${Math.floor(seconds)}`, {method:'PUT', text:true});
+    if (state === 'stopped' && duration > 0 && seconds / duration >= .97)
+      await channelsRequest(c, `${base}/watch`, {method:'PUT', text:true});
+  };
+
   ctx.syncPlexProgress = async (req, item, seconds, duration, state) => {
     if (!item.connectionId) return;
     const c = connection(req, item.connectionId);
@@ -1040,6 +1173,28 @@ export function registerProviderRoutes(app, ctx, dependencies = {}) {
       const c = connection(req, req.query.connectionId);
       const id = String(req.query.itemId || "");
       const kind = String(req.query.kind || "movie");
+      if (c.type === 'channels') {
+        let sessionPath, resumeSeconds;
+        const live = /^live:(\d{1,5}(?:\.\d{1,3})?)$/.exec(id);
+        const recording = /^(file|movie):(\d{1,10})$/.exec(id);
+        if (live) {
+          ensure(req, c, {type:'live'});
+          sessionPath = `/devices/ANY/channels/${live[1]}/hls`;
+        } else if (recording) {
+          ensure(req, c, {type:recording[1] === 'movie' ? 'movie' : 'series'});
+          const file = await channelsFile(c, recording[2], recording[1] === 'movie');
+          resumeSeconds = Math.max(0, Number(file.playback_time) || 0);
+          sessionPath = `/dvr/files/${recording[2]}/hls`;
+        } else throw providerError('Invalid Channels DVR playback identifier.');
+        return res.json({
+          url:media.register(req, c, {
+            kind:'hls', url:new URL(`${sessionPath}/master.m3u8`, validateRemoteUrl(c.config.url)).toString(),
+            channelsSessionPath:sessionPath, allowedPrivateHosts:privateHosts(c.config.url),
+          }),
+          type:'hls', provider:'channels', isLive:!!live, streamKind:'direct-file',
+          ...(recording ? {resumeSeconds} : {}),
+        });
+      }
       if (c.type === "xtream") {
         let category, extension, streamId;
         if (kind === "live") {
