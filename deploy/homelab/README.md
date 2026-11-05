@@ -24,14 +24,25 @@ APP_IMAGE=tesplay:local
 
 All other values come from `.env.example` defaults.
 
+YouTube playback (added 2026-11-05) also needs these in `.env`:
+
+```sh
+COMPOSE_PROFILES=youtube        # build/start the internal yt-dlp resolver
+YT_DLP_VERSION=2026.10.26       # bump when YouTube breaks the resolver; rebuild `youtube`
+```
+
 ## Deploy / update
 
 ```sh
 cd ~/hermes/stacks/tesplay
 git pull --ff-only
-docker compose -f compose.yaml -f deploy/homelab/compose.homelab.yaml up -d --build app
+docker compose -f compose.yaml -f deploy/homelab/compose.homelab.yaml up -d --build
 docker exec nginxproxymanager curl -fsS http://10.42.90.44:4174/api/health
+docker exec aperture-app-1 node -e "fetch('http://youtube:4180/health').then(r=>console.log(r.status))"
 ```
+
+To update only yt-dlp: change `YT_DLP_VERSION`, then
+`docker compose -f compose.yaml -f deploy/homelab/compose.homelab.yaml up -d --build youtube`.
 
 The first-owner setup code is only printed in the logs before the owner exists:
 `docker compose -f compose.yaml -f deploy/homelab/compose.homelab.yaml logs app | grep -i setup`.

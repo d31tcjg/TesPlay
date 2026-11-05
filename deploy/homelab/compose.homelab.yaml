@@ -5,12 +5,21 @@
 # Puts the app on the existing macvlan_lan network with a stable IP so
 # NGINX Proxy Manager (10.42.90.11) can reach it directly. No host port is
 # published; the upstream loopback port mapping is removed.
+#
+# The app also joins the stack's private `default` bridge network so it can
+# reach the optional `youtube` resolver at http://youtube:4180 (without it,
+# the name `youtube` falls through to LAN DNS). gw_priority keeps the
+# container's default route on macvlan_lan, as before.
+# With COMPOSE_PROFILES=youtube in .env, `up -d --build` also builds/starts
+# the resolver.
 services:
   app:
     ports: !reset []
     networks:
       macvlan_lan:
         ipv4_address: 10.42.90.44
+        gw_priority: 100
+      default: {}
 
 networks:
   macvlan_lan:
