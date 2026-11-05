@@ -1,0 +1,17 @@
+# Homelab merge overlay for Cesar's personal TesPlay fork.
+# Use together with the upstream compose.yaml:
+#   docker compose -f compose.yaml -f deploy/homelab/compose.homelab.yaml up -d --build app
+#
+# Puts the app on the existing macvlan_lan network with a stable IP so
+# NGINX Proxy Manager (10.42.90.11) can reach it directly. No host port is
+# published; the upstream loopback port mapping is removed.
+services:
+  app:
+    ports: !reset []
+    networks:
+      macvlan_lan:
+        ipv4_address: 10.42.90.44
+
+networks:
+  macvlan_lan:
+    external: true
