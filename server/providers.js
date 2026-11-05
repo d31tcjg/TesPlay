@@ -1286,10 +1286,14 @@ export function registerProviderRoutes(app, ctx, dependencies = {}) {
     const match = /^(file|movie):(\d{1,10})$/.exec(item.id);
     if (!match) throw providerError('Invalid Channels DVR recording identifier.');
     ensure(req, c, {type:match[1] === 'movie' ? 'movie' : 'series'});
-    await channelsFile(c, match[2], match[1] === 'movie');
+    const file = await channelsFile(c, match[2], match[1] === 'movie');
     const base = `/dvr/files/${match[2]}`;
     await channelsRequest(c, `${base}/playback_time/${Math.floor(seconds)}`, {method:'PUT', text:true});
-    if (state === 'stopped' && duration > 0 && seconds / duration >= .97)
+    // DVR catalog duration and progress are both seconds. Only a finite positive
+    // numeric file duration can authorize auto-watch; never fall back to client
+    // or item duration. Missing/malformed duration still permits resume sync.
+    const fileDuration = file.duration;
+    if (state === 'stopped' && Number.isFinite(fileDuration) && fileDuration > 0 && seconds / fileDuration >= .97)
       await channelsRequest(c, `${base}/watch`, {method:'PUT', text:true});
   };
 

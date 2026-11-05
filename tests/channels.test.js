@@ -293,11 +293,65 @@ test('Channels progress validates recording membership before changing a DVR fil
   assert.ok(f.calls.every(call=>call.method==='GET'),'unavailable recordings must not trigger DVR writes');
 });
 
+test('Channels watched threshold uses the matched DVR file duration instead of the client duration',async t=>{
+  const f=await fixture(t,{remoteData:async(u,options)=>{
+    if(u.pathname==='/api/v1/episodes')return [{id:'99',duration:100},{id:'12',duration:200}];
+    if(u.pathname==='/api/v1/movies')return [{id:'12',duration:100}];
+    assert.equal(options.method,'PUT');return '';
+  }});
+  // Neither client duration nor item metadata may override the matched DVR record.
+  const item={id:'file:12',connectionId:'c1',type:'episode',duration:100,source:'Synthetic DVR'};
+  const result=await f.post('/api/library/progress',{item,seconds:99,duration:100,state:'stopped'});
+  assert.equal(result.status,200);
+  assert.deepEqual(await result.json(),{ok:true});
+  assert.equal(f.calls.at(-1).path,'/dvr/files/12/playback_time/99');
+  assert.ok(!f.calls.some(x=>x.path.endsWith('/watch')));
+});
+
+test('Channels watches at the inclusive DVR 97 percent boundary using unfloored seconds for episodes and movies',async t=>{
+  const f=await fixture(t,{remoteData:async(u,options)=>{
+    if(u.pathname==='/api/v1/episodes')return [{id:'99',duration:1},{id:'12',duration:200}];
+    if(u.pathname==='/api/v1/movies')return [{id:'99',duration:1},{id:'12',duration:100.5}];
+    assert.equal(options.method,'PUT');return '';
+  }});
+  for(const [prefix,type,dvrDuration] of [['file','episode',200],['movie','movie',100.5]]) {
+    const item={id:`${prefix}:12`,connectionId:'c1',type,duration:1,source:'Synthetic DVR'};
+    for(const clientDuration of [500,0]) {
+      for(const [offset,watched] of [[-.001,false],[0,true],[.001,true]]) {
+        const seconds=dvrDuration*.97+offset;
+        const before=f.calls.length;
+        const result=await f.post('/api/library/progress',{item,seconds,duration:clientDuration,state:'stopped'});
+        assert.equal(result.status,200);
+        assert.deepEqual(await result.json(),{ok:true});
+        const writes=f.calls.slice(before).filter(x=>x.method==='PUT').map(x=>x.path);
+        assert.deepEqual(writes,[`/dvr/files/12/playback_time/${Math.floor(seconds)}`,...(watched?['/dvr/files/12/watch']:[])]);
+      }
+    }
+  }
+});
+
+test('Channels never auto-watches without a valid DVR duration but still saves progress',async t=>{
+  for(const duration of [undefined,null,0,-1,NaN,Infinity,-Infinity,'','  ','100','invalid','Infinity',true,false,[],[100],{}]) {
+    await t.test(`duration ${String(duration)} (${typeof duration})`,async t=>{
+      const f=await fixture(t,{remoteData:async(u,options)=>{
+        if(u.pathname==='/api/v1/episodes')return [{id:'12',duration}];
+        assert.equal(options.method,'PUT');return '';
+      }});
+      const item={id:'file:12',connectionId:'c1',type:'episode',source:'Synthetic DVR'};
+      const result=await f.post('/api/library/progress',{item,seconds:100,duration:100,state:'stopped'});
+      assert.equal(result.status,200);
+      assert.deepEqual(await result.json(),{ok:true});
+      assert.equal(f.saved.at(-1).seconds,100);
+      assert.deepEqual(f.calls.filter(x=>x.method==='PUT').map(x=>x.path),['/dvr/files/12/playback_time/100']);
+    });
+  }
+});
+
 test('Channels progress saves integer seconds, watches only stopped at 97 percent and keeps local progress on failure',async t=>{
   let fail=false;
   const f=await fixture(t,{remoteData:async(u,options)=>{
     if(fail) throw Object.assign(new Error('Synthetic upstream failure'),{status:502});
-    if(u.pathname==='/api/v1/episodes')return episodes;
+    if(u.pathname==='/api/v1/episodes')return [{...episodes[0],duration:100}];
     if(u.pathname==='/api/v1/movies')return [{id:'99',duration:100}];
     assert.equal(options.method,'PUT');return '';
   }});
