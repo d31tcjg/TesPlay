@@ -113,6 +113,28 @@ try {
   await shot('390x844-phone');
   const phone=await evaluate(`({grid:!!document.querySelector('.cg-scroller'),rows:document.querySelectorAll('.cg-onnow-row').length,overflow:document.documentElement.scrollWidth>innerWidth})`);
   check(!phone.grid&&phone.rows>0&&!phone.overflow,'phone: On now list without horizontal overflow'); results.push({phone});
+  for (const width of [320, 390, 699, 700, 1280]) {
+    await send('Emulation.setDeviceMetricsOverride', { width, height:844,deviceScaleFactor:1,mobile:width<700 });
+    await send('Page.navigate', { url: url + '?onnow' });
+    for (let i=0;i<100;i++) { if (await evaluate(`!!document.querySelector('.cg-next')`)) break; await delay(100); }
+    const next = await evaluate(`(() => {
+      const e=document.querySelector('.cg-next'), r=e.getBoundingClientRect();
+      const time=new Date(1800001800*1000).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});
+      return {text:e.textContent, expectedPrefix:innerWidth<700?'Next: '+time+' · Upcoming':'Next: Upcoming',
+        overflow:document.documentElement.scrollWidth>innerWidth, right:r.right, width:innerWidth,
+        ellipsis:getComputedStyle(e).textOverflow, clipped:e.scrollWidth>e.clientWidth};
+    })()`);
+    check(next.text.startsWith(next.expectedPrefix), `${width}: Next time/title DOM reading order`);
+    check(!next.overflow && next.right<=width && next.ellipsis==='ellipsis', `${width}: Next does not overflow`);
+    const ax = await send('Accessibility.getFullAXTree');
+    const watch = ax.nodes.find(n=>n.role?.value==='button' && n.name?.value.startsWith('Watch 1 '));
+    check(watch?.name?.value.includes(next.text), `${width}: Next is included in accessible name in reading order`);
+    await shot(`${width}x844-next`); results.push({onNowWidth:width,next,accessibleName:watch?.name?.value});
+  }
+  // The same mounted On now component must follow a breakpoint change.
+  await send('Emulation.setDeviceMetricsOverride', {width:390,height:844,deviceScaleFactor:1,mobile:true});
+  await delay(150);
+  check(await evaluate(`document.querySelector('.cg-next').textContent.startsWith('Next: '+new Date(1800001800*1000).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})+' · Upcoming')`), 'Next reading order follows resize to phone');
   await writeFile(join(out,'results.json'),JSON.stringify({results,failures},null,2));
   console.log(JSON.stringify({results,failures},null,2));
   if (failures.length) process.exitCode=1;

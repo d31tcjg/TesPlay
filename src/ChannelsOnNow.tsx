@@ -4,7 +4,7 @@ import { Search, Star, Tv } from 'lucide-react';
 import { api, errorMessage } from './api';
 import { Busy, Empty } from './components';
 import type { Connection, Library, MediaItem } from './types';
-import { airingProgress, channelFavorite, filterChannels, formatClock, isCurrent, liveItem, ROW_HEIGHT, visibleRows } from './channels-guide';
+import { airingProgress, channelFavorite, filterChannels, formatClock, isCurrent, isNarrowLayout, liveItem, ROW_HEIGHT, visibleRows } from './channels-guide';
 import type { GuideChannel, GuideFilter, GuideResponse } from './channels-guide';
 
 export const emptyFilter: GuideFilter = { source: '', favorites: false, query: '' };
@@ -43,6 +43,7 @@ export default function ChannelsOnNow({ connection, library, onOpen, onFavorite,
 }) {
   const [data, setData] = useState<GuideResponse>(), [error, setError] = useState(''), [filter, setFilter] = useState<GuideFilter>(emptyFilter);
   const [scrollTop, setScrollTop] = useState(0), list = useRef<HTMLDivElement>(null), frame = useRef<number>(0);
+  const [narrow, setNarrow] = useState(() => typeof window !== 'undefined' && isNarrowLayout(window.innerWidth));
   const now = useNowSeconds();
   useEffect(() => {
     const controller = new AbortController();
@@ -54,7 +55,12 @@ export default function ChannelsOnNow({ connection, library, onOpen, onFavorite,
     return () => { controller.abort(); window.clearInterval(timer); };
   }, [connection.id]);
   useEffect(() => {
-    const update = () => { frame.current = 0; const rect = list.current?.getBoundingClientRect(); if (rect) setScrollTop(Math.max(0, -rect.top)); };
+    const update = () => {
+      frame.current = 0;
+      setNarrow(isNarrowLayout(window.innerWidth));
+      const rect = list.current?.getBoundingClientRect();
+      if (rect) setScrollTop(Math.max(0, -rect.top));
+    };
     const onScroll = () => { if (!frame.current) frame.current = window.requestAnimationFrame(update); };
     update();
     window.addEventListener('scroll', onScroll, { passive: true }); window.addEventListener('resize', onScroll);
@@ -73,14 +79,15 @@ export default function ChannelsOnNow({ connection, library, onOpen, onFavorite,
           {rows.slice(window_.start, window_.end).map(channel => {
             const current = channel.airings.find(a => isCurrent(a, now)) || channel.airings[0];
             const item = liveItem(connection, channel), starred = channelFavorite(library.favorites, connection.id, channel.id);
+            const nextLabel = channel.next ? `Next: ${narrow ? `${formatClock(channel.next.start)} · ${channel.next.title}` : `${channel.next.title} · ${formatClock(channel.next.start)}`}` : '';
             return <li key={channel.id} className="cg-onnow-row" style={{ height: ROW_HEIGHT }}>
-              <button type="button" className="cg-onnow-play" onClick={() => onOpen(item)} aria-label={`Watch ${channel.number} ${channel.name}${current ? `, ${current.title}` : ''}`}>
+              <button type="button" className="cg-onnow-play" onClick={() => onOpen(item)} aria-label={`Watch ${channel.number} ${channel.name}${current ? `, ${current.title}` : ''}${nextLabel ? `, ${nextLabel}` : ''}`}>
                 <ChannelLogo channel={channel} />
                 <span className="cg-onnow-channel"><strong>{channel.number}</strong><small>{channel.name}</small></span>
                 <span className="cg-onnow-program">
                   <span className="cg-onnow-title">{current ? current.title : 'No program information'}{current?.isNew && <em className="cg-badge">New</em>}{current?.isLive && <em className="cg-badge live">Live</em>}</span>
                   {current && <span className="cg-progress" aria-hidden="true"><span style={{ width: `${airingProgress(current, now)}%` }} /></span>}
-                  {channel.next && <small className="cg-next">Next: {channel.next.title} · {formatClock(channel.next.start)}</small>}
+                  {nextLabel && <small className="cg-next">{nextLabel}</small>}
                 </span>
               </button>
               <button type="button" className={`cg-star ${starred ? 'selected' : ''}`} aria-pressed={starred} aria-label={`${starred ? 'Remove' : 'Add'} ${channel.name} ${starred ? 'from' : 'to'} favorites`} onClick={() => onFavorite(item)}><Star size={18} fill={starred ? 'currentColor' : 'none'} /></button>

@@ -136,13 +136,37 @@ test('now returns at most one airing per channel, with next only from a cached g
   assert.equal(f.guideCalls().length, 2, 'now + one guide window; next never costs a request');
 });
 
-test('airing looks up one airing with long summary and artwork; bad input is 400 and misses are 404', async t => {
+test('airing clamps lookup time inclusively before cache lookup and window alignment', async t => {
+  const lower = NOW - 2 * 3600, upper = NOW + 7 * 86400;
+  for (const [input, expected] of [[lower - 1, lower], [-1, lower], [upper + 1, upper], [999999999999, upper],
+    [lower, lower], [upper, upper], [NOW + 123, NOW + 123]]) {
+    // A one-second program proves the lookup uses the exact clamped second, not the aligned fetch time.
+    const f = await fixture(t, {guide: [row('9.1', [airing('9.1', expected, 1)])]});
+    const result = await f.get(`airing?channel=9.1&time=${input}`);
+    assert.equal(result.airing.start, expected, String(input));
+    assert.equal(f.guideCalls()[0].path, `/devices/ANY/guide?time=${Math.floor(expected / 1800) * 1800}&duration=3600`);
+  }
+  const f = await fixture(t, {guide: [row('9.1', [airing('9.1', lower, 1), airing('9.1', lower - 1, 1)])]});
+  await f.get(`guide?start=${lower}`);
+  assert.equal((await f.get(`airing?channel=9.1&time=${lower - 1}`)).airing.start, lower, 'cached lookup is also clamped');
+  assert.equal(f.guideCalls().length, 1);
+});
+
+test('airing defaults missing and malformed times to the frozen current second', async t => {
+  const f = await fixture(t, {guide: [row('9.1', [airing('9.1', NOW, 1)])]});
+  for (const query of ['', '&time=', '&time=abc', '&time=1.5', '&time=1e9', '&time=Infinity',
+    '&time=1800001000junk', '&time=1&time=2', '&time[x]=1', '&time=999999999999999999999999999999']) {
+    assert.equal((await f.get('airing?channel=9.1' + query)).airing.start, NOW, query);
+  }
+});
+
+test('airing looks up one airing with long summary and artwork; bad channels are 400 and misses are 404', async t => {
   const f = await fixture(t, {guide: [row('9.1', [airing('9.1', ALIGNED, 1800, {Summary: 'short', FullSummary: 'F'.repeat(2000), Image: 'http://192.0.2.10:8089/b.png'})])]});
   const r = await f.get(`airing?channel=9.1&time=${ALIGNED + 60}`);
   assert.equal(r.channel.id, 'live:9.1'); assert.equal(r.airing.start, ALIGNED); assert.equal(r.airing.summary.length, 1500);
   assert.match(r.airing.image, /^\/api\/media\//);
   assert.match(f.guideCalls()[0].path, new RegExp(`time=${ALIGNED}&duration=3600$`), 'fetches a one hour window');
-  for (const q of ['channel=../x&time=1', 'channel=9.1&time=abc', 'channel=9.1&time=1.5', 'channel=9.1', 'time=5', 'channel=9.1&time=-1'])
+  for (const q of ['channel=../x&time=1', 'time=5'])
     assert.equal((await f.raw('airing?' + q)).status, 400, q);
   assert.equal((await f.raw(`airing?channel=9.1&time=${ALIGNED + 4000}`)).status, 404);
   assert.equal((await f.raw(`airing?channel=500&time=${ALIGNED}`)).status, 404);

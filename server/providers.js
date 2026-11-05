@@ -454,10 +454,12 @@ export function registerProviderRoutes(app, ctx, dependencies = {}) {
   app.get('/api/channels/:connectionId/airing', route(async (req, res) => {
     const c = connection(req, req.params.connectionId, 'channels');
     ensure(req, c, { type: 'live' });
-    const number = String(req.query.channel || ''), timeText = String(req.query.time || '');
+    const number = String(req.query.channel || '');
     if (!channelsNumber.test(number)) throw providerError('Invalid Channels DVR channel.');
-    if (!/^\d{1,12}$/.test(timeText)) throw providerError('Invalid guide time.');
-    const time = Number(timeText);
+    const now = guideNow(), timeText = req.query.time;
+    // Unix seconds, like /guide. Missing/malformed values mean now; never partially parse a timestamp.
+    const wanted = typeof timeText === 'string' && /^-?\d{1,12}$/.test(timeText) ? Number(timeText) : now;
+    const time = Math.min(now + 7 * 86400, Math.max(now - 2 * 3600, wanted));
     const rows = await (guidePeek(c, time) || guideFetch(c, Math.floor(time / 1800) * 1800, 1));
     const row = rows.find(r => String(r?.Channel?.Number) === number);
     const airing = (row?.Airings || []).find(a => Number(a.Time) <= time && time < Number(a.Time) + Number(a.Duration));

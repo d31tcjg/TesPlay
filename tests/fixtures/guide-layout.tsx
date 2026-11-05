@@ -5,6 +5,7 @@ import { createRoot } from 'react-dom/client';
 import '../../src/styles.css';
 import Navigation from '../../src/Navigation';
 import LibraryBrowser from '../../src/LibraryBrowser';
+import ChannelsOnNow from '../../src/ChannelsOnNow';
 
 const now = 1800001000;
 Date.now = () => now * 1000;
@@ -18,7 +19,7 @@ window.fetch = async (input) => {
   const url = new URL(String(input), location.href);
   let body = {};
   if (url.pathname.endsWith('/guide')) body = { start, end: start + 86400, channels };
-  else if (url.pathname.endsWith('/now')) body = { start, end: start + 86400, channels: channels.map(c => ({ ...c, airings: c.airings.slice(0, 1) })) };
+  else if (url.pathname.endsWith('/now')) body = { start, end: start + 86400, channels: channels.map(c => ({ ...c, airings: c.airings.slice(0, 1), next: { ...c.airings[1], title: `Upcoming ${c.number} — A very long synthetic program title to exercise narrow phone ellipsis without overflow` } })) };
   else if (url.pathname === '/api/catalog') body = { items: [] };
   else throw new Error(`Unexpected fixture API: ${url}`);
   return new Response(JSON.stringify(body), { headers: { 'Content-Type': 'application/json' } });
@@ -26,6 +27,6 @@ window.fetch = async (input) => {
 const noop = () => {};
 createRoot(document.getElementById('root')!).render(<div className="app-shell" data-navigation-overlay="false">
   <Navigation view="live" phone={innerWidth < 700} signedIn searchOpen={false} onNavigate={noop} onSearch={noop} onRemote={noop} onProfile={noop} onSignIn={noop} />
-  <main><div><LibraryBrowser mode="live" selectedConnection={null} query="" connections={[{ id: 'synthetic', type: 'channels', name: 'Synthetic DVR', createdAt: '', configured: true }]}
-    library={{ favorites: [], progress: [], stars: [], queue: [] }} onOpen={noop} onFavorite={noop} onStar={noop} onConnect={noop} onYouTube={noop} onGuide={noop} /></div></main>
+  <main><div>{location.search.includes('onnow') ? <ChannelsOnNow connection={{ id: 'synthetic', type: 'channels', name: 'Synthetic DVR', createdAt: '', configured: true }} library={{ favorites: [], progress: [], stars: [], queue: [] }} onOpen={noop} onFavorite={noop} /> : <LibraryBrowser mode="live" selectedConnection={null} query="" connections={[{ id: 'synthetic', type: 'channels', name: 'Synthetic DVR', createdAt: '', configured: true }]}
+    library={{ favorites: [], progress: [], stars: [], queue: [] }} onOpen={noop} onFavorite={noop} onStar={noop} onConnect={noop} onYouTube={noop} onGuide={noop} />}</div></main>
 </div>);
