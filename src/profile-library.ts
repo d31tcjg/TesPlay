@@ -148,11 +148,13 @@ export class ProfileLibrary {
     // A new account session never inherits queued writes from an earlier login.
     const pending = previous.catch(() => {}).then(async () => {
       if (!this.isCurrentAccount(identity)) return;
-      const result = await this.dependencies.request<{ plexSyncError?: string }>('/library/progress', {
+      const result = await this.dependencies.request<{ plexSyncError?: string; channelsSyncError?: string; connectionSyncError?: string }>('/library/progress', {
         item, seconds, duration, state, profileId: identity.profileId,
       }, undefined, undefined, true);
       if (!this.isCurrent(identity)) return;
-      if (result.plexSyncError) this.notify(identity, result.plexSyncError);
+      // One toast: separate notifications would overwrite each other in the UI.
+      const syncErrors = [...new Set([result.connectionSyncError, result.plexSyncError, result.channelsSyncError].filter(Boolean))];
+      if (syncErrors.length) this.notify(identity, syncErrors.join(' '));
       this.update(identity, library => ({
         ...library,
         progress: [

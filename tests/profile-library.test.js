@@ -213,6 +213,44 @@ test('switching account discards queued progress and suppresses old results and 
   assert.deepEqual(f.messages, []);
 });
 
+test('Channels-only sync failures use the existing toast and preserve saved progress', async () => {
+  const message = 'Saved in TesPlay, but Channels DVR could not update. Check your Channels DVR connection.';
+  const f = fixture(async () => ({ channelsSyncError: message }));
+  await f.controller.saveProgress(f.identity, item('file:12'), 20, 100);
+  assert.deepEqual(f.messages, [message]);
+  assert.equal(f.controller.getSnapshot().value.progress[0].seconds, 20);
+});
+
+test('sync feedback keeps Plex-only behavior and combines independent failures in one toast', async () => {
+  for (const result of [
+    { plexSyncError: 'Plex needs reconnecting.' },
+    { connectionSyncError: 'Reopen the deleted connection.' },
+    { plexSyncError: 'Plex needs reconnecting.', channelsSyncError: 'Channels DVR is unavailable.' },
+    { plexSyncError: 'Shared failure.', channelsSyncError: 'Shared failure.' },
+    {},
+  ]) {
+    const f = fixture(async () => result);
+    await f.controller.saveProgress(f.identity, item('film'), 20, 100);
+    const messages = [...new Set(Object.values(result))];
+    assert.deepEqual(f.messages, messages.length ? [messages.join(' ')] : []);
+    assert.equal(f.controller.getSnapshot().value.progress[0].seconds, 20);
+  }
+});
+
+test('late Channels and connection failures do not notify a different profile or account', async () => {
+  for (const userId of ['account', 'another-account']) {
+    const delayed = deferred();
+    const f = fixture(() => delayed.promise);
+    const pending = f.controller.saveProgress(f.identity, item('file:12'), 20, 100);
+    await new Promise(resolve => setImmediate(resolve));
+    f.switchIdentity(userId, 'profile-b');
+    delayed.resolve({ channelsSyncError: 'Old DVR failure.', connectionSyncError: 'Old connection failure.' });
+    await pending;
+    assert.deepEqual(f.messages, []);
+    assert.deepEqual(f.controller.getSnapshot().value.progress, []);
+  }
+});
+
 test('YouTube favorites keep using the Watch playlist while ordinary unsigned favorites require sign-in', async () => {
   const requests = [], video = { ...item('video', 'youtube'), type: 'video' };
   const f = fixture(async (path, body) => {

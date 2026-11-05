@@ -126,9 +126,22 @@ export function registerLibraryRoutes(
     // them as library history entries that can no longer be opened.
     if (item.providerType === "remote-media") return res.json({ ok: true });
     store.saveProgress(getProfileId(req), item, seconds, duration);
+    // Resolve the authoritative type before invoking either hook. A missing
+    // connection is one shared failure, not a failure of both providers.
+    let connectionType;
+    if (item.connectionId) {
+      try {
+        connectionType = ctx.getConnection(req, item.connectionId).type;
+      } catch {
+        return res.json({
+          ok: true,
+          connectionSyncError: 'Saved in TesPlay, but the source connection is unavailable. Check your connection in Settings and reopen the title.',
+        });
+      }
+    }
     let plexSyncError;
     try {
-      await ctx.syncPlexProgress?.(
+      if (connectionType === 'plex') await ctx.syncPlexProgress?.(
         req,
         item,
         seconds,
@@ -141,7 +154,7 @@ export function registerLibraryRoutes(
     }
     let channelsSyncError;
     try {
-      await ctx.syncChannelsProgress?.(req, item, seconds, duration, req.body.state);
+      if (connectionType === 'channels') await ctx.syncChannelsProgress?.(req, item, seconds, duration, req.body.state);
     } catch {
       channelsSyncError = 'Saved in TesPlay, but Channels DVR could not update. Check your Channels DVR connection.';
     }

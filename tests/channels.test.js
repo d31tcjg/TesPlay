@@ -286,6 +286,48 @@ test('Channels tickets stop working after the configured DVR changes',async t=>{
   await new Promise(resolve=>setImmediate(resolve));assert.equal(calls,0,'release must not delete a session on the new DVR');
 });
 
+test('a connection removed after progress validation produces one actionable connection error', async t => {
+  const f = await fixture(t);
+  f.ctx.getConnection = () => { throw Object.assign(new Error('Missing private detail'), { status: 404 }); };
+  const result = await f.post('/api/library/progress', {
+    item: { id: 'file:12', connectionId: 'c1', providerType: 'plex', type: 'episode', source: 'Synthetic DVR' },
+    seconds: 20, duration: 100, state: 'paused',
+  });
+  assert.equal(result.status, 200);
+  assert.deepEqual(await result.json(), {
+    ok: true,
+    connectionSyncError: 'Saved in TesPlay, but the source connection is unavailable. Check your connection in Settings and reopen the title.',
+  });
+  assert.equal(f.saved[0].seconds, 20);
+  assert.deepEqual(f.calls, []);
+});
+
+test('progress sync selects only the authoritative provider even if the item claims another type', async t => {
+  for (const type of ['channels', 'plex', 'youtube']) {
+    const f = await fixture(t);
+    f.c.type = type;
+    const invoked = [];
+    for (const provider of ['Plex', 'Channels']) {
+      f.ctx[`sync${provider}Progress`] = async () => {
+        invoked.push(provider.toLowerCase());
+        // Model deletion after preflight but before the matching hook resolves.
+        throw new Error('Connection removed; private detail');
+      };
+    }
+    const result = await f.post('/api/library/progress', {
+      item: { id: 'file:12', connectionId: 'c1', providerType: type === 'channels' ? 'plex' : 'channels', type: 'episode', source: 'Synthetic' },
+      seconds: 20, duration: 100,
+    });
+    assert.equal(result.status, 200);
+    const body = await result.json();
+    assert.deepEqual(invoked, type === 'youtube' ? [] : [type]);
+    assert.deepEqual(Object.keys(body).sort(), type === 'youtube' ? ['ok'] : [`${type}SyncError`, 'ok'].sort());
+    if (type !== 'youtube') assert.match(body[`${type}SyncError`], /Saved in TesPlay.*Check your/);
+    assert.equal(f.saved[0].seconds, 20);
+    assert.deepEqual(f.calls, []);
+  }
+});
+
 test('Channels progress validates recording membership before changing a DVR file',async t=>{
   const f=await fixture(t,{remoteData:async()=>[]});
   const result=await f.post('/api/library/progress',{item:{id:'movie:99',connectionId:'c1',type:'movie',source:'Synthetic DVR'},seconds:99,duration:100,state:'stopped'});
