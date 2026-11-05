@@ -250,10 +250,19 @@ export default function ConnectionEditor({ adding, editing, editConfig, configur
                       ? "Saved — leave blank to keep"
                       : f.placeholder
                   }
+                  aria-describedby={adding === 'channels' && f.key === 'url' ? 'channels-url-help' : undefined}
                   autoComplete="off"
                   spellCheck={false}
                   autoCapitalize="none"
                 />
+                {adding === 'channels' && f.key === 'url' && (
+                  <small id="channels-url-help" className="form-help">
+                    Use the DVR’s local network address (for example http://192.168.1.20:8089)
+                    or a hostname reachable from the TesPlay server, not just this device.
+                    A reachable public or reverse-proxy URL can still reject DVR API access (403).
+                    Test the connection after saving to check access.
+                  </small>
+                )}
                 {configuredFields.includes(f.key) && (
                   <small className="connection-credential-note">
                     Already saved to your account
