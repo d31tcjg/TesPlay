@@ -131,19 +131,18 @@ test('labels and ticks', () => {
   deepEqual(g.timeTicks(O + 100, O + 3700), [O + 1800, O + 3600]);
 });
 
-test('unifiedShelves: Channels adds recorded shows and movies shelves and nothing for Live TV', async () => {
+test('unifiedShelves: Channels adds one Recordings shelf on TV Shows only', async () => {
   const c = {id: 'c1', name: 'Synthetic DVR', type: 'channels', configured: true};
-  const paths = [], request = async path => {paths.push(path); return {items: [{id: 'show:1', type: 'series', title: 'Synthetic Show'}]};};
+  const paths = [], request = async path => {paths.push(path); return {items: [{id: 'file:1', type: 'episode', title: 'Synthetic Episode'}]};};
   const signal = new AbortController().signal;
   const series = await unifiedShelves(c, 'series', request, signal);
-  assert.equal(series.length, 1); assert.equal(series[0].title, 'Synthetic DVR · Recorded shows');
-  assert.equal(series[0].parent.id, 'channels:shows'); assert.equal(series[0].parent.type, 'folder');
-  assert.equal(series[0].items[0].id, 'show:1');
+  assert.equal(series.length, 1); assert.equal(series[0].title, 'Synthetic DVR · Recordings');
+  assert.equal(series[0].parent.id, 'channels:recordings'); assert.equal(series[0].parent.type, 'folder');
+  assert.equal(series[0].items[0].id, 'file:1');
   const query = new URL(paths[0], 'https://x.test').searchParams;
-  assert.equal(query.get('parentId'), 'channels:shows'); assert.equal(query.get('limit'), '12'); assert.equal(query.get('connectionId'), 'c1');
-  const movies = await unifiedShelves(c, 'movies', request, signal);
-  assert.equal(movies[0].title, 'Synthetic DVR · Recorded movies'); assert.equal(movies[0].parent.id, 'channels:movies');
+  assert.equal(query.get('parentId'), 'channels:recordings'); assert.equal(query.get('limit'), '12'); assert.equal(query.get('connectionId'), 'c1');
   paths.length = 0;
+  deepEqual(await unifiedShelves(c, 'movies', request, signal), [], 'movies are in the one Recordings list'); assert.equal(paths.length, 0);
   deepEqual(await unifiedShelves(c, 'live', request, signal), []); assert.equal(paths.length, 0, 'the guide replaces the live shelf');
   deepEqual(await unifiedShelves({...c, access: {kinds: ['live']}}, 'series', request, signal), [], 'household kind grants still apply');
 });
@@ -154,6 +153,7 @@ test('Home asks each Channels connection for recently recorded titles', async ()
   const result = await loadHomeConnection(c, async path => {paths.push(path); return {items: [{id: 'file:1', type: 'episode', title: 'Pilot'}, {id: 'movie:2', type: 'movie', title: 'Film'}]};}, new AbortController().signal);
   assert.equal(result.issues.length, 0); assert.equal(result.shelves.length, 1);
   assert.equal(result.shelves[0].title, 'Synthetic DVR · Recently recorded'); assert.equal(result.shelves[0].items.length, 2);
+  assert.equal(result.shelves[0].parent.id, 'channels:recordings', 'View all opens the Recordings list'); assert.equal(result.shelves[0].parent.type, 'folder'); assert.equal(result.shelves[0].parent.connectionId, 'c1');
   const query = new URL(paths[0], 'https://x.test').searchParams;
   assert.equal(query.get('parentId'), 'channels:recent'); assert.equal(query.get('limit'), '12');
   const failed = await loadHomeConnection(c, async () => {throw new Error('DVR offline');}, new AbortController().signal);

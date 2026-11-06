@@ -63,8 +63,9 @@ export async function loadHomeConnection(c: Connection, request: Request, signal
       if (!shelves.length && root.items.length) shelf('libraries', c.name, root.items);
     } else if (c.type === 'channels') {
       // Newest unwatched recordings across all shows (server-side `channels:recent`).
-      // "View all" opens the connection's folders: a mixed show/movie list has no single episode view.
-      collect(await Promise.allSettled([catalog('all','channels:recent')]),['Recently recorded'],r=>shelf('recent',`${c.name} · Recently recorded`,r.items));
+      // "View all" opens the full Recordings list (newest first, watched included).
+      const recordings:MediaItem={id:'channels:recordings',title:'Recordings',type:'folder',source:c.name,connectionId:c.id,contentKind:'series'};
+      collect(await Promise.allSettled([catalog('all','channels:recent')]),['Recently recorded'],r=>shelf('recent',`${c.name} · Recently recorded`,r.items,{parent:recordings}));
     } else if (c.type === 'm3u') {
       const categories=stars.filter(s=>s.connectionId===c.id && s.kind==='category' && (!Array.isArray(c.loadedCategories)||c.loadedCategories.includes(s.id)));
       collect(await Promise.allSettled(categories.map(s=>catalog('live','',s.id))),categories.map(s=>s.title),(r,index)=>shelf(categories[index].id,`${c.name} · Live TV · ${categories[index].title}`,r.items,{kind:'live',category:categories[index].id}));

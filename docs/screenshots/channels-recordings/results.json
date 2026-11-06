@@ -1,0 +1,32 @@
+{
+  "expectedTotal": 355,
+  "results": [
+    {
+      "viewport": "1920x1200",
+      "firstPage": 60,
+      "afterScroll": 120,
+      "total": 355
+    },
+    {
+      "viewport": "1280x720",
+      "firstPage": 60,
+      "afterScroll": 120,
+      "total": 355
+    },
+    {
+      "viewport": "390x844",
+      "firstPage": 60,
+      "afterScroll": 120,
+      "total": 355
+    },
+    {
+      "phoneChip": {
+        "rows": 60,
+        "folderCards": 0,
+        "overflow": false,
+        "pressed": "true"
+      }
+    }
+  ],
+  "failures": []
+}

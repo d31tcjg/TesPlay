@@ -251,8 +251,7 @@ export function registerProviderRoutes(app, ctx, dependencies = {}) {
   const channelsFileId = /^\d{1,10}$/;
   const channelsFolders = [
     ['channels:live', 'Live TV', 'live'],
-    ['channels:shows', 'TV Shows', 'series'],
-    ['channels:movies', 'Movies', 'movie'],
+    ['channels:recordings', 'Recordings', 'series'],
   ];
   const channelsRevisions = new Map();
   function channelsList(c, pathname, force = false) {
@@ -304,8 +303,36 @@ export function registerProviderRoutes(app, ctx, dependencies = {}) {
     if (!file) throw providerError('Channels DVR recording not found.', 404);
     return file;
   }
+  // One cross-show list of every usable recording, newest first. Only the requested page is turned into
+  // items (artwork tokens are registered per item), so a 500+ file library is never serialized at once.
+  async function channelsRecordingsPage(req, c, query, force) {
+    const series = permitted(req, c, { type: 'episode', contentKind: 'series' }), movie = permitted(req, c, { type: 'movie', contentKind: 'movie' });
+    if (!series && !movie) ensure(req, c, { type: 'episode', contentKind: 'series' });
+    const [episodes, movies] = await Promise.all([
+      series ? channelsList(c, '/api/v1/episodes', force) : [],
+      movie ? channelsList(c, '/api/v1/movies', force).catch(() => []) : [],
+    ]);
+    const { page, limit, q } = pageData(query), needle = q.toLowerCase();
+    const usable = x => x && !x.cancelled && !x.corrupted && x.processed !== false && channelsFileId.test(String(x.id));
+    const matches = ([x, isMovie]) => !needle || [isMovie ? x.title : x.episode_title || x.title, isMovie ? '' : x.title]
+      .some(t => cleanText(t).toLowerCase().includes(needle));
+    const rows = [...episodes.filter(usable).map(x => [x, false]), ...movies.filter(usable).map(x => [x, true])].filter(matches)
+      .sort(([a], [b]) => channelsTime(b.created_at) - channelsTime(a.created_at) || Number(b.id) - Number(a.id));
+    const items = rows.slice((page - 1) * limit, page * limit).map(([x, isMovie]) => {
+      const item = channelsRecording(req, c, x, isMovie);
+      item.recordedAt = item.addedAt;
+      if (!isMovie) item.subtitle = cleanText(x.title);
+      const channel = String(x.channel ?? '').trim();
+      if (channelsNumber.test(channel)) item.channel = channel;
+      return item;
+    });
+    return { items, hasMore: rows.length > page * limit };
+  }
+  // Legacy folders (channels:shows/movies/recent, show:<id>) stay resolvable for favorites, history and links,
+  // but the root lists Live TV and Recordings only.
   async function channelsCatalog(req, c, parent, force) {
-    if (!parent) return channelsFolders.filter(([, , type]) => permitted(req, c, { type }))
+    if (!parent) return channelsFolders
+      .filter(([id, , type]) => id === 'channels:recordings' ? ['series', 'movie'].some(t => permitted(req, c, { type: t })) : permitted(req, c, { type }))
       .map(([id, title, contentKind]) => itemBase(c, { id, title, contentKind, type: 'folder' }));
     if (parent === 'channels:live') {
       ensure(req, c, {type:'live'});
@@ -897,6 +924,7 @@ export function registerProviderRoutes(app, ctx, dependencies = {}) {
       const parent = String(req.query.parentId || "");
       const force = req.query.refresh === "1";
       if (c.type === 'channels') {
+        if (parent === 'channels:recordings') return res.json({ ...await channelsRecordingsPage(req, c, req.query, force), categories: [] });
         const items = await channelsCatalog(req, c, parent, force);
         return res.json({ ...paginate(items, req.query),
           categories:[...new Set(items.map(x => x.category).filter(Boolean))].map(name => ({id:name,name})) });

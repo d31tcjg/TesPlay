@@ -4,6 +4,7 @@ import { Busy, ConnectorLogo, Empty } from "./components";
 import GlobalSearch from "./GlobalSearch";
 import type { Connection, Library, MediaItem, Starred } from "./types";
 import { isIptv } from "./iptv-library";
+import { recordingsFolder } from "./channels-recordings";
 const LibraryBrowser = lazy(() => import("./LibraryBrowser"));
 const YouTube = lazy(() => import("./YouTube"));
 const RemoteEpisodes = lazy(() => import("./RemoteEpisodes"));
@@ -181,7 +182,7 @@ export default function RemoteLibrary({
             key={`${source.id}:${parent?.id || ""}`}
             mode="catalog"
             selectedConnection={source}
-            initialParent={parent}
+            initialParent={parent || (source.type === "channels" ? recordingsFolder(source) : undefined)}
             connections={connections}
             library={library}
             hideYouTubeShorts={hideYouTubeShorts}

@@ -13,6 +13,8 @@ import type { CatalogResult, LibraryMode, LibraryShelf, PlexSection } from './li
 import { bundleIptvShelves, isIptv } from './iptv-library';
 import IptvBundleBrowser from './IptvBundleBrowser';
 const ChannelsGuide = lazy(() => import('./ChannelsGuide'));
+const ChannelsRecordings = lazy(() => import('./ChannelsRecordings'));
+import { isRecordingsFolder } from './channels-recordings';
 type Props = {connections:Connection[];library:Library;hideYouTubeShorts?:boolean;onOpen:(i:MediaItem)=>void;onBrowseSeries?:(i:MediaItem)=>void;onFavorite:(i:MediaItem)=>void;onStar:(s:Starred)=>void;onConnect:()=>void;onYouTube:()=>void;onGuide:(i:MediaItem)=>void;query:string};
 const kinds=[['live','Live TV',Radio],['movie','Movies',Film],['series','TV shows',Tv]] as const;
 const saved=(library:Library,item:MediaItem)=>[...library.favorites,...(library.queue||[])].some(i=>itemKey(i)===itemKey(item));
@@ -36,16 +38,19 @@ export function SourceBrowser({connection:c,initialParent,initialKind='all',init
   const [result,setResult]=useState<CatalogResult>({items:[]}),[categories,setCategories]=useState<{id:string;name:string}[]>([]),[busy,setBusy]=useState(true),[error,setError]=useState('');
   const lastRefresh=useRef(refresh);
   const parent=folders.at(-1);
+  const recordings=isRecordingsFolder(c,parent);
   useEffect(()=>{const timer=setTimeout(()=>{setQuery(draft);setPage(1);setTokens([]);},300);return()=>clearTimeout(timer);},[draft]);
   useEffect(()=>setDraft(props.query),[props.query]);
   useEffect(()=>{
+    // The Channels Recordings list loads and pages itself (infinite scroll).
+    if(recordings){if(refresh!==lastRefresh.current){lastRefresh.current=refresh;invalidateHomePreview(c.id);}setBusy(false);setError('');return;}
     const controller=new AbortController();setBusy(true);setError('');
     const params=new URLSearchParams({connectionId:c.id,kind,parentId:parent?.id||'',category,q:query,page:String(page)});
     const force=refresh!==lastRefresh.current;if(force)params.set('refresh','1');lastRefresh.current=refresh;
     if(tokens[page-1])params.set('pageToken',tokens[page-1]);
     void api<CatalogResult>(`/catalog?${params}`,undefined,undefined,controller.signal).then(r=>{if(!controller.signal.aborted){if(force)invalidateHomePreview(c.id);setResult(r);if(r.categories)setCategories(r.categories);}}).catch(e=>{if(!controller.signal.aborted)setError(errorMessage(e));}).finally(()=>{if(!controller.signal.aborted)setBusy(false);});
     return()=>controller.abort();
-  },[c.id,kind,parent?.id,category,query,page,tokens,refresh]);
+  },[c.id,kind,parent?.id,recordings,category,query,page,tokens,refresh]);
   const choose=(id:string)=>{setCategory(id);setPage(1);setTokens([]);};
   const open=(item:MediaItem)=>{if(props.onBrowseSeries&&(item.type==='series'||item.type==='folder'&&!!item.seriesId)){props.onBrowseSeries(item);return;}if(item.type==='folder'||item.type==='series'){setFolders(f=>[...f,item]);choose('');setDraft('');}else props.onOpen(item);};
   const visibleItems=filterYouTubeItems(result.items,props.hideYouTubeShorts||false,props.connections,props.library.progress);
@@ -55,7 +60,7 @@ export function SourceBrowser({connection:c,initialParent,initialKind='all',init
       <div className="sidebar-label">{c.name}</div>
       {c.type==='xtream'&&!parent&&kinds.filter(([id])=>!c.access||c.access.kinds.includes(id)).map(([id,title,Icon])=><button key={id} className={`sidebar-link ${kind===id?'selected':''}`} onClick={()=>{setKind(id);setCategories([]);choose('');setDraft('');}}><Icon size={18}/>{title}</button>)}
       <div className="sidebar-label">{parent?'Browse':'Categories'}</div>
-      <button className={`sidebar-link ${!category?'selected':''}`} onClick={()=>choose('')}>All {parent?'episodes':kind==='live'?'channels':'titles'}</button>
+      <button className={`sidebar-link ${!category?'selected':''}`} onClick={()=>choose('')}>All {recordings?'recordings':parent?'episodes':kind==='live'?'channels':'titles'}</button>
       <div className="sidebar-categories">{ordered.map(value=><div key={value.id} className="sidebar-category"><button className={`sidebar-link ${category===value.id?'selected':''}`} onClick={()=>choose(value.id)}>{value.name}</button>{!parent&&<StarsButton value={{connectionId:c.id,kind:'category',id:value.id,title:value.name}} props={props}/>}</div>)}</div>
     </aside>
     <div className="library-main">
@@ -63,8 +68,8 @@ export function SourceBrowser({connection:c,initialParent,initialKind='all',init
       {folders.length>0&&<div className="library-breadcrumbs"><button className="text-button" onClick={()=>{setFolders([]);choose('');}}>Library</button>{folders.map((f,index)=><button className="text-button" key={`${f.id}:${index}`} onClick={()=>{setFolders(a=>a.slice(0,index+1));choose('');}}><ArrowRight size={14}/>{f.title}</button>)}</div>}
       <SearchBox query={draft} onChange={setDraft}/>
       {error&&<div className="form-error" role="alert">{error}</div>}
-      {busy?<Busy/>:visibleItems.length?<Grid items={visibleItems} props={props} onOpen={open}/>:!error&&<Empty title="No titles here">{props.hideYouTubeShorts&&result.items.length?'Short videos are hidden. Change this in Settings or choose another category.':'Choose another category or search.'}</Empty>}
-      {(page>1||result.hasMore||result.nextPageToken)&&<div className="pagination"><button className="button ghost" disabled={page===1||busy} onClick={()=>setPage(p=>p-1)}><ChevronLeft size={16}/>Previous</button><span>Page {page}</span><button className="button ghost" disabled={busy||!result.hasMore&&!result.nextPageToken} onClick={()=>{if(result.nextPageToken)setTokens(t=>{const a=[...t];a[page]=result.nextPageToken!;return a;});setPage(p=>p+1);}}>Next<ArrowRight size={16}/></button></div>}
+      {recordings?<Suspense fallback={<Busy label="Loading recordings…"/>}><ChannelsRecordings connection={c} library={props.library} query={query} refresh={refresh} onOpen={props.onOpen}/></Suspense>:busy?<Busy/>:visibleItems.length?<Grid items={visibleItems} props={props} onOpen={open}/>:!error&&<Empty title="No titles here">{props.hideYouTubeShorts&&result.items.length?'Short videos are hidden. Change this in Settings or choose another category.':'Choose another category or search.'}</Empty>}
+      {!recordings&&(page>1||result.hasMore||result.nextPageToken)&&<div className="pagination"><button className="button ghost" disabled={page===1||busy} onClick={()=>setPage(p=>p-1)}><ChevronLeft size={16}/>Previous</button><span>Page {page}</span><button className="button ghost" disabled={busy||!result.hasMore&&!result.nextPageToken} onClick={()=>{if(result.nextPageToken)setTokens(t=>{const a=[...t];a[page]=result.nextPageToken!;return a;});setPage(p=>p+1);}}>Next<ArrowRight size={16}/></button></div>}
     </div>
   </div>;
 }

@@ -38,11 +38,11 @@ export async function unifiedShelves(c:Connection,mode:LibraryMode,request:Reque
     return results.flatMap(r=>r.status==='fulfilled'?[r.value]:[]);
   }
   if(c.type==='channels') {
-    // Live TV is the guide grid; recordings become shelves that open the v1 catalog folders.
-    if(kind==='live') return [];
-    const folder=kind==='series'?{id:'channels:shows',title:'TV Shows'}:{id:'channels:movies',title:'Movies'};
+    // Live TV is the guide grid. All recordings (episodes and movies) are one newest-first list, shown on the TV Shows page only.
+    if(kind!=='series') return [];
+    const folder={id:'channels:recordings',title:'Recordings'};
     const items=(await catalog(folder.id,'all')).items;
-    return [shelf(folder.id,`${c.name} · ${kind==='series'?'Recorded shows':'Recorded movies'}`,items,{...folder,type:'folder',source:c.name,connectionId:c.id,contentKind:kind},'all')];
+    return [shelf(folder.id,`${c.name} · Recordings`,items,{...folder,type:'folder',source:c.name,connectionId:c.id,contentKind:'series'},'all')];
   }
   if(c.type==='xtream' || c.type==='m3u' && kind==='live') return [shelf(kind,c.name,(await catalog()).items)];
   if(['drive','local'].includes(c.type) && kind!=='live') {

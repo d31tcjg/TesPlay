@@ -1,0 +1,27 @@
+/* Channels DVR Recordings: one vertical list, newest first. Flat fills only (old in-car browsers). */
+.cr-list-wrap { width: 100%; max-width: 980px; }
+.cr-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.cr-row { position: relative; display: flex; align-items: center; border-bottom: 1px solid var(--line);
+  content-visibility: auto; contain-intrinsic-size: auto 96px; }
+.cr-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 16px; min-height: 88px; padding: 10px 8px; background: none; border: 0; color: var(--text); text-align: left; cursor: pointer; font: inherit; }
+.cr-main:hover, .cr-main:focus-visible { background: #ffffff0a; }
+.cr-thumb { flex: none; display: grid; place-items: center; width: 128px; aspect-ratio: 16 / 9; border-radius: 6px; background: var(--raised); color: var(--muted); overflow: hidden; }
+.cr-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cr-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.cr-title { font-size: 16px; font-weight: 600; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cr-subtitle { font-size: 14px; color: var(--secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cr-meta { display: flex; flex-wrap: wrap; gap: 2px 12px; font-size: 13px; color: var(--muted); }
+.cr-channel { color: var(--secondary); }
+.cr-progress { display: block; height: 3px; margin-top: 4px; max-width: 280px; border-radius: 2px; background: #ffffff1f; overflow: hidden; }
+.cr-progress > span { display: block; height: 100%; background: var(--accent); }
+.cr-check { flex: none; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--accent); color: #fff; }
+.cr-row.watched .cr-title { color: var(--secondary); }
+.cr-play { flex: none; display: grid; place-items: center; width: 48px; height: 48px; margin: 0 8px; border-radius: 24px; border: 1px solid #ffffff24; background: transparent; color: var(--text); cursor: pointer; }
+.cr-play:hover, .cr-play:focus-visible { background: #ffffff14; }
+.cr-sentinel { height: 1px; }
+@media (max-width: 700px) {
+  .cr-main { gap: 12px; min-height: 80px; }
+  .cr-thumb { width: 96px; }
+  .cr-title { font-size: 15px; }
+  .cr-play { width: 44px; height: 44px; margin: 0 4px; }
+}

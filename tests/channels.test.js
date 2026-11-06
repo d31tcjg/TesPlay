@@ -101,10 +101,15 @@ test('Channels root folders respect household kind grants',async t=>{
   const f=await fixture(t);
   const root=await f.get('catalog');
   assert.deepEqual(root.items.map(x=>[x.id,x.title,x.contentKind]),[
-    ['channels:live','Live TV','live'],['channels:shows','TV Shows','series'],['channels:movies','Movies','movie']]);
+    ['channels:live','Live TV','live'],['channels:recordings','Recordings','series']]);
   assert.ok(root.items.every(x=>x.type==='folder'));
   f.c.access={kinds:['series']};
-  assert.deepEqual((await f.get('catalog')).items.map(x=>x.id),['channels:shows']);
+  assert.deepEqual((await f.get('catalog')).items.map(x=>x.id),['channels:recordings']);
+  f.c.access={kinds:['movie']};
+  assert.deepEqual((await f.get('catalog')).items.map(x=>x.id),['channels:recordings']);
+  f.c.access={kinds:['live']};
+  assert.deepEqual((await f.get('catalog')).items.map(x=>x.id),['channels:live']);
+  f.c.access={kinds:['series']};
   assert.equal((await f.request('/api/catalog?connectionId=c1&parentId=channels:live')).status,403);
 });
 
@@ -528,4 +533,84 @@ test('Channels progress saves integer seconds, watches only stopped at 97 percen
   const result=await(await progress(item,20,100,'paused')).json();
   assert.equal(result.ok,true);assert.match(result.channelsSyncError,/Saved in TesPlay.*Channels DVR/);
   assert.equal(f.saved.at(-1).seconds,20);
+});
+
+// ---- Recordings: one newest-first list ----
+const rec=(id,created_at,extra={})=>({id:String(id),show_id:'S',title:'Show '+id,episode_title:'Ep '+id,created_at,processed:true,duration:1800,channel:'36.1',...extra});
+const film=(id,created_at,extra={})=>({id:String(id),title:'Film '+id,created_at,processed:true,duration:6000,...extra});
+const recordingData=(episodes,movies)=>({'/api/v1/episodes':episodes,'/api/v1/movies':movies});
+const baseUrl='192.0.2.10';
+
+test('Recordings merges episodes and movies newest first with id tiebreak, excluding unusable files',async t=>{
+  const f=await fixture(t,{data:recordingData([
+    rec(1,1000),rec(2,3000),rec(3,2000,{cancelled:true}),rec(4,2500,{corrupted:true}),rec(5,2600,{processed:false}),
+    rec(6,3000,{watched:true,episode_title:'',channel:'../x'}),rec(7,500,{id:'bad id'}),
+  ],[film(10,2999),film(11,3000,{playback_time:60,path:'/synthetic/private/film.ts'}),film(12,1500,{cancelled:true})])});
+  const list=await f.get('catalog',{parentId:'channels:recordings'});
+  assert.deepEqual(list.items.map(x=>x.id),['movie:11','file:6','file:2','movie:10','file:1']);
+  assert.equal(list.hasMore,false);
+  const watched=list.items.find(x=>x.id==='file:6');
+  assert.equal(watched.watched,true,'watched recordings stay in the list');
+  assert.equal(watched.title,'Show 6','episode title falls back to the show name');
+  assert.equal(watched.channel,undefined,'invalid channel numbers are dropped');
+  const ep=list.items.find(x=>x.id==='file:2');
+  assert.deepEqual([ep.title,ep.subtitle,ep.channel,ep.seriesId,ep.type],['Ep 2','Show 2','36.1','show:S','episode']);
+  assert.equal(ep.recordedAt,new Date(3000*1000).toISOString());
+  const movie=list.items.find(x=>x.id==='movie:11');
+  assert.deepEqual([movie.type,movie.subtitle,movie.resumeSeconds,movie.seriesId],['movie',undefined,60,undefined]);
+  assert.ok(!list.items.some(x=>['file:3','file:4','file:5','file:7','movie:12'].includes(x.id)));
+  const json=JSON.stringify(list);
+  assert.ok(!json.includes(baseUrl)&&!json.includes('"path"')&&!json.includes('/synthetic/private'));
+});
+
+test('Recordings pages never lose or repeat a recording and cache the provider lists',async t=>{
+  const episodes=Array.from({length:25},(_,i)=>rec(100+i,1000+i*10)),movies=Array.from({length:7},(_,i)=>film(200+i,1005+i*10));
+  const f=await fixture(t,{data:recordingData(episodes,movies)});
+  const seen=[];let hasMore=true;
+  for(let page=1;hasMore;page++){
+    const r=await f.get('catalog',{parentId:'channels:recordings',limit:'10',page:String(page)});
+    assert.ok(r.items.length<=10);assert.equal(r.hasMore,page<4,`page ${page}`);seen.push(...r.items);hasMore=r.hasMore;
+  }
+  assert.equal(seen.length,32);assert.equal(new Set(seen.map(x=>x.id)).size,32);
+  const times=seen.map(x=>Date.parse(x.recordedAt));
+  assert.deepEqual(times,[...times].sort((a,b)=>b-a));
+  assert.equal(f.calls.length,2,'one fetch per list, then the 30 s cache');
+  const def=await f.get('catalog',{parentId:'channels:recordings'});
+  assert.equal(def.items.length,32,'default page size is 60');
+  await f.get('catalog',{parentId:'channels:recordings',refresh:'1'});assert.equal(f.calls.length,4);
+  const search=await f.get('catalog',{parentId:'channels:recordings',q:'film 20'});
+  assert.deepEqual(search.items.map(x=>x.id),['movie:206','movie:205','movie:204','movie:203','movie:202','movie:201','movie:200']);
+  const large=Array.from({length:150},(_,i)=>rec(1000+i,i));
+  const g=await fixture(t,{data:recordingData(large,[])});
+  const first=await g.get('catalog',{parentId:'channels:recordings',limit:'500'});
+  assert.equal(first.items.length,100,'a page never exceeds 100 rows');assert.equal(first.hasMore,true);
+});
+
+test('Recordings respects series and movie grants and 403s when neither is shared',async t=>{
+  const f=await fixture(t,{data:recordingData([rec(1,1000)],[film(2,2000)])});
+  const ids=async()=>(await f.get('catalog',{parentId:'channels:recordings'})).items.map(x=>x.id);
+  f.c.access={kinds:['series']};assert.deepEqual(await ids(),['file:1']);
+  f.c.access={kinds:['movie']};assert.deepEqual(await ids(),['movie:2']);
+  f.c.access={kinds:['series','movie']};assert.deepEqual(await ids(),['movie:2','file:1']);
+  f.c.access=undefined;assert.deepEqual(await ids(),['movie:2','file:1']);
+  f.c.access={kinds:['live']};
+  assert.equal((await f.request('/api/catalog?connectionId=c1&parentId=channels:recordings')).status,403);
+  const g=await fixture(t,{data:recordingData([rec(1,1000)],[film(2,2000)]),access:{kinds:['series']}});
+  await g.get('catalog',{parentId:'channels:recordings'});
+  assert.deepEqual(g.calls.map(x=>x.path),['/api/v1/episodes'],'an unshared kind is not even requested');
+});
+
+test('A missing movies endpoint still lists episodes',async t=>{
+  const f=await fixture(t,{remoteData:async u=>{if(u.pathname==='/api/v1/episodes')return [rec(1,1000)];throw Object.assign(new Error('Provider returned HTTP 404.'),{status:502});}});
+  assert.deepEqual((await f.get('catalog',{parentId:'channels:recordings'})).items.map(x=>x.id),['file:1']);
+});
+
+test('Legacy Channels folders keep resolving beside Recordings',async t=>{
+  const f=await fixture(t,{data:{
+    '/api/v1/shows':[{id:'S',name:'Show S',last_recorded_at:1}],'/api/v1/shows/S/episodes':[rec(1,1000,{season_number:1,episode_number:1})],
+    ...recordingData([rec(1,1000),rec(2,2000,{watched:true})],[film(3,3000)])}});
+  assert.deepEqual((await f.get('catalog',{parentId:'channels:shows'})).items.map(x=>x.id),['show:S']);
+  assert.deepEqual((await f.get('catalog',{parentId:'show:S'})).items.map(x=>x.id),['file:1']);
+  assert.deepEqual((await f.get('catalog',{parentId:'channels:movies'})).items.map(x=>x.id),['movie:3']);
+  assert.deepEqual((await f.get('catalog',{parentId:'channels:recent'})).items.map(x=>x.id),['movie:3','file:1'],'recent stays unwatched-only');
 });

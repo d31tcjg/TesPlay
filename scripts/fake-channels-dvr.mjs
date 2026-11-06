@@ -4,6 +4,7 @@
 //   [FAKE_CHANNELS_HOST=<local ip>] node scripts/fake-channels-dvr.mjs [port]   (default 8189)
 import http from 'node:http';
 import zlib from 'node:zlib';
+import { fileURLToPath } from 'node:url';
 
 const port = Number(process.argv[2] || process.env.FAKE_CHANNELS_PORT || 8189);
 // TesPlay's SSRF guard refuses loopback addresses, so a dev run needs another local interface address
@@ -76,9 +77,25 @@ const movies = Array.from({ length: 8 }, (_, i) => ({ id: String(fileId++), titl
   summary: 'An invented movie.', image_url: `${origin}/img/m${i}.png`, thumbnail_url: `${origin}/img/m${i}.png`, duration: 6000 + i * 300, playback_time: 0, watched: false, processed: true,
   cancelled: false, corrupted: false, content_rating: 'PG', created_at: nowMs - i * 5 * 3600e3, genres: ['Drama'], path: '/synthetic/never/film.ts' }));
 
+// ~300 recordings in total with deliberately mixed `created_at` (array order is NOT chronological), including
+// watched, partly watched, cancelled, corrupted and unprocessed files, so the Recordings list has real work to do.
+const mix = (i, n) => (i * 7919 + 13) % n;
+for (let i = 0; i < 270; i++) {
+  const si = i % shows.length, show = shows[si];
+  episodes.push({ ...episodes[i % 40], id: String(fileId++), show_id: show.id, title: show.name,
+    episode_title: i % 9 === 0 ? '' : `${pick(words, hash(i, 'x'))} ${pick(nouns, hash('y', i))}`, season_number: 1 + i % 3, episode_number: 1 + i % 12,
+    image_url: `${origin}/img/e${i % 20}.png`, thumbnail_url: `${origin}/img/e${(i * 3) % 20}.png`, duration: 1800 + (i % 4) * 900,
+    playback_time: i % 7 === 3 ? 300 + (i % 5) * 200 : 0, watched: i % 5 === 0, channel: ['9.1', '36.1', '4.2', '12.3'][i % 4],
+    cancelled: i % 41 === 7, corrupted: i % 53 === 11, processed: i % 61 !== 13, created_at: nowMs - (1 + mix(i, 270)) * 5 * 3600e3 });
+}
+for (let i = 0; i < 12; i++) movies.push({ ...movies[i % 8], id: String(fileId++), title: `${pick(words, hash('M', i))} ${pick(nouns, hash('N', i))}: Part ${i + 2}`,
+  release_year: 1990 + i * 2, watched: i % 4 === 0, playback_time: i % 4 === 1 ? 1800 : 0, created_at: nowMs - (1 + mix(i, 12)) * 31 * 3600e3 });
+export { episodes, movies, png, hash };
+
 const json = (res, body, status = 200) => { res.writeHead(status, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(body)); };
 
-http.createServer((req, res) => {
+// Importable for tests (data only); listens only when run directly.
+if (process.argv[1] === fileURLToPath(import.meta.url)) http.createServer((req, res) => {
   const url = new URL(req.url, origin), p = url.pathname;
   let m;
   if (p === '/status') return json(res, { version: 'fake', features: { dvr: true } });
