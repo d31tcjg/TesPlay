@@ -24,6 +24,9 @@ services:
   youtube:
     environment:
       YOUTUBE_MAX_HEIGHT: ${YOUTUBE_MAX_HEIGHT:-720}
+      YOUTUBE_COOKIES_FILE: /run/secrets/youtube/cookies.txt
+    volumes:
+      - ./secrets/youtube:/run/secrets/youtube:ro
 
 networks:
   macvlan_lan:

@@ -57,7 +57,7 @@ test('injected maxHeight overrides the environment and rejects unsupported optio
 
 test('homelab overlay sets only the youtube cap and preserves the original app block', () => {
   const overlay = readFileSync(new URL('../deploy/homelab/compose.homelab.yaml', import.meta.url), 'utf8');
-  assert.match(overlay, /^  youtube:\n    environment:\n      YOUTUBE_MAX_HEIGHT: \$\{YOUTUBE_MAX_HEIGHT:-720\}$/m);
+  assert.match(overlay, /^  youtube:\n    environment:\n      YOUTUBE_MAX_HEIGHT: \$\{YOUTUBE_MAX_HEIGHT:-720\}\n/m);
   const originalApp = '  app:\n    ports: !reset []\n    networks:\n      macvlan_lan:\n        ipv4_address: 10.42.90.44\n        gw_priority: 100\n      default: {}\n';
   assert.equal(overlay.match(/^  app:\n[\s\S]*?(?=\n  \w|\nnetworks:)/m)?.[0], originalApp);
 });

@@ -33,6 +33,21 @@ YT_DLP_VERSION=2026.10.26       # bump when YouTube breaks the resolver; rebuild
 
 The homelab overlay defaults YouTube to 720p; set `YOUTUBE_MAX_HEIGHT` in `.env` to `360`, `480`, `720` or `1080` to override (invalid values warn and fall back to 1080p); recreate `youtube` after changes.
 
+## Members-only YouTube
+
+Members-only, age-restricted and private videos need your signed-in YouTube account. TesPlay always tries anonymously first and retries **once** with cookies only when YouTube reports the video as account-gated. The Google OAuth connection cannot do this (yt-dlp cannot use OAuth for playback).
+
+1. Export cookies on the Mac (any members video works as the target):
+   `yt-dlp --cookies-from-browser chrome --cookies cookies.txt --skip-download https://www.youtube.com/watch?v=<members video>`
+2. Install on the server (never commit it; `secrets/` is gitignored):
+   `install -d ~/hermes/stacks/tesplay/secrets/youtube && install -m 600 cookies.txt ~/hermes/stacks/tesplay/secrets/youtube/cookies.txt`
+3. Permissions: the container user must be able to read the file. Check `docker exec aperture-youtube-1 id` and set the owner or group of the file accordingly (mode 600 needs the matching owner).
+4. Apply with `docker compose -f compose.yaml -f deploy/homelab/compose.homelab.yaml up -d youtube`. The `youtube` log prints one line, `YouTube account cookies: enabled` or `disabled`. The file is re-read on every retry, so replacing it needs no restart.
+5. Refresh when cookies expire (members videos start returning "refresh TesPlay's YouTube cookies"): repeat steps 1-2.
+6. Remove: delete the file; cookies are then disabled and gated videos show a "needs cookies" message. A missing file never breaks health.
+
+Account risk: YouTube may flag an account whose cookies are used from a server. Use sparingly and expect to re-export periodically. The mount is read-only and yt-dlp only sees a temporary 0600 copy that is deleted after each attempt.
+
 ## Deploy / update
 
 ```sh

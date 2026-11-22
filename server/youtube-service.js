@@ -1,6 +1,11 @@
 import http from 'node:http';
+import { access, constants } from 'node:fs/promises';
 import { createYouTubeResolver } from './youtube.js';
-const resolveYouTube = createYouTubeResolver({ enabled: true, resolverUrl: '' });
+const cookiesFile = process.env.YOUTUBE_COOKIES_FILE || '';
+// Startup only checks access; the file is read fresh on each gated retry. Never log the path.
+const cookiesReadable = cookiesFile ? await access(cookiesFile, constants.R_OK).then(() => true, () => false) : false;
+console.log(`YouTube account cookies: ${cookiesReadable ? 'enabled' : 'disabled'}`);
+const resolveYouTube = createYouTubeResolver({ enabled: true, resolverUrl: '', cookiesFile });
 const server = http.createServer(async (req, res) => {
   const controller = new AbortController();
   res.once('close', () => { if (!res.writableEnded) controller.abort(); });

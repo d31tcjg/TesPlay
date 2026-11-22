@@ -67,3 +67,10 @@ Status: spec, 2026-11-21 (Developer). Cesar chose to play members-only videos (e
   - With no cookies yet, `JApE9dxTiLk` returns the 403 "needs cookies" message.
   - After Cesar installs the cookies, `JApE9dxTiLk` resolves.
 - Rollback: `1e024cc`, or simply delete the cookies file.
+
+## Implementation notes (2026-11-21)
+
+- Resolver: `server/youtube.js` (`cookiesFile` option / `YOUTUBE_COOKIES_FILE`); gated stderr is classified into members/age/private/bot, never relayed. After a cookie retry, a still-gated bot check also gets the "refresh cookies" 403 (bot check without cookies stays the generic 502).
+- `server/youtube-service.js` logs one line (`YouTube account cookies: enabled|disabled`) based on an `access(R_OK)` check only; the resolver re-reads the file on every retry.
+- No UI change: `src/api.ts` surfaces the server `error` text via `ApiError`, and `Player.tsx` shows `errorMessage(e)`.
+- Tests: `tests/youtube-cookies.test.js`; the overlay assertion in `tests/youtube-max-height.test.js` was loosened (it anchored on end-of-block).
