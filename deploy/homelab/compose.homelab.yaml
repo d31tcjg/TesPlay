@@ -21,6 +21,10 @@ services:
         gw_priority: 100
       default: {}
 
+  youtube:
+    environment:
+      YOUTUBE_MAX_HEIGHT: ${YOUTUBE_MAX_HEIGHT:-720}
+
 networks:
   macvlan_lan:
     external: true

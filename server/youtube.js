@@ -27,7 +27,12 @@ export function normalizeYouTube(info, expectedId) {
 }
 
 /** Resolve metadata and stream URLs only; no video files or account cookies are downloaded. */
-export function createYouTubeResolver({ binary = process.env.YT_DLP_PATH || 'yt-dlp', run = execute, enabled = process.env.YOUTUBE_ENABLED === 'true', resolverUrl = process.env.YOUTUBE_RESOLVER_URL || '' } = {}) {
+export function createYouTubeResolver({ binary = process.env.YT_DLP_PATH || 'yt-dlp', run = execute, enabled = process.env.YOUTUBE_ENABLED === 'true', resolverUrl = process.env.YOUTUBE_RESOLVER_URL || '', maxHeight = process.env.YOUTUBE_MAX_HEIGHT } = {}) {
+  if (maxHeight === undefined) maxHeight = 1080;
+  else if (![360, 480, 720, 1080, '360', '480', '720', '1080'].includes(maxHeight)) {
+    console.warn('Invalid YOUTUBE_MAX_HEIGHT; expected 360, 480, 720 or 1080. Falling back to 1080.');
+    maxHeight = 1080;
+  }
   let active = 0;
   return async (input, signal) => {
     const id = validateYouTubeId(input);
@@ -54,7 +59,7 @@ export function createYouTubeResolver({ binary = process.env.YT_DLP_PATH || 'yt-
       const { stdout } = await run(binary, [
         '--ignore-config', '--no-playlist', '--skip-download', '--print', streamTemplate, '--no-warnings', '--no-progress', '--no-cache-dir',
         '--socket-timeout', '15', '--retries', '1', '--extractor-retries', '1', '--js-runtimes', `node:${process.execPath}`,
-        '-f', 'bv[protocol^=m3u8][height<=1080][vcodec^=avc1]+ba[protocol^=m3u8]/bv*[height<=1080][vcodec^=avc1]+ba[acodec^=mp4a]/b[height<=1080][ext=mp4]',
+        '-f', `bv[protocol^=m3u8][height<=${maxHeight}][vcodec^=avc1]+ba[protocol^=m3u8]/bv*[height<=${maxHeight}][vcodec^=avc1]+ba[acodec^=mp4a]/b[height<=${maxHeight}][ext=mp4]`,
         '--', `https://www.youtube.com/watch?v=${id}`,
       ], { timeout: 90000, maxBuffer: 8 * 1024 * 1024, signal, windowsHide: true });
       const compact = JSON.parse(stdout);

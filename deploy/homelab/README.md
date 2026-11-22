@@ -31,6 +31,8 @@ COMPOSE_PROFILES=youtube        # build/start the internal yt-dlp resolver
 YT_DLP_VERSION=2026.10.26       # bump when YouTube breaks the resolver; rebuild `youtube`
 ```
 
+The homelab overlay defaults YouTube to 720p; set `YOUTUBE_MAX_HEIGHT` in `.env` to `360`, `480`, `720` or `1080` to override (invalid values warn and fall back to 1080p); recreate `youtube` after changes.
+
 ## Deploy / update
 
 ```sh
